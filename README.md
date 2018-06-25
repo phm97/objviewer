@@ -11,7 +11,7 @@ Texture files are loaded with GdkPixbuf. The supported file formats are the foll
 - jpeg
 - png
 - tiff
-and more
+- and more
 
 **Installation:**
 To build objviewer, install the following dependencies :
