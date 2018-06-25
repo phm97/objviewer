@@ -18,7 +18,6 @@ To build objviewer, install the following dependencies :
 - GNU make
 - GTK+ 2
 - GtkGLExt
-Then, just type 'make'. If it doesn't work, edit the makefile
 
 **Notes:**
 Maybe I will port this little app to GTK+ 3 and OpenGL 3.3 in the future, but nothing is planed for the moment.
