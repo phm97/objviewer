@@ -30,3 +30,4 @@ If you want to use this code to make a paid software, please let me know.
 ## Screenshots
 ![objviewer screenshot](./screenshot1.png)
 ![objviewer screenshot](./screenshot2.png)
+![objviewer screenshot](./screenshot3.png)
