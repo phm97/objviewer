@@ -1,22 +1,3 @@
-/*
-Copyright 2018 VILAIN Pierre
-
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following 
-disclaimer in the documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, 
-BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
-SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <stdio.h>
@@ -30,7 +11,12 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 #include "obj.h"
 
 
+static int objVerbose = 0;
 
+void obj_enable_verbose( int boolean )
+{
+	objVerbose = boolean;
+}
 
 //--------------------------------------------------------------------------
 //fonctions for loading obj 3D models
@@ -56,11 +42,10 @@ static ObjModel* obj_new()
 }
 
 
-//counts the number of vertices, normals and texture coordinates and allocates the memory to store them
+//count the number of vertices, normals and texture coordinates and allocate the memory to store them
 static void obj_first_read( ObjModel *model, FILE *file )
 {
 	int i,g;
-	int numObjects = 0;
 	int size;
 	int character = 0;
 	
@@ -86,14 +71,8 @@ static void obj_first_read( ObjModel *model, FILE *file )
 							if( character == EOF ) break;
 						}
             break;
-			case 'o' : numObjects++; 
-						for(;;)
-						{
-							character = fgetc( file );
-							if( character == '\n' ) break;
-							if( character == EOF ) break;
-						}
-			break;
+			
+			case 'o' :
             case 'u' : //usemtl
 			case 'm' : //mtllib
 			case 's' : //s off
@@ -107,13 +86,17 @@ static void obj_first_read( ObjModel *model, FILE *file )
         }
     }
 
-
-    g_print("-> %d vertices\n", model->numVertices );
-    g_print("-> %d texture coordinates\n", model->numTexCoor );
-    g_print("-> %d normals\n", model->numNorms );
-    g_print("-> %d faces\n", model->numFaces );
-    g_print("-> %d groups\n", model->numGroups );
-	if( numObjects ) g_print("-> %d objects\n", numObjects);
+	
+    if( objVerbose )
+    {
+        printf("-> %d vertices\n", model->numVertices );
+        printf("-> %d texture coordinates\n", model->numTexCoor );
+        printf("-> %d normals\n", model->numNorms );
+        printf("-> %d faces\n", model->numFaces );
+        printf("-> %d groups\n", model->numGroups );
+    }
+	
+	
 	
 	model->vertices = (vec3d*) malloc( model->numVertices * sizeof( vec3d ) );
     model->texCoor = (vec2d*) malloc( model->numTexCoor * sizeof( vec2d ) );
@@ -126,27 +109,36 @@ static void obj_first_read( ObjModel *model, FILE *file )
 	
 	size = sizeof(ObjModel) + (model->numVertices * sizeof( vec3d )) + (model->numTexCoor * sizeof( vec2d ))
 			+ (model->numNorms * sizeof( vec3d)) + (model->numFaces * sizeof( face ));
-	g_print("%d bytes allocated\n", size);
+	if( objVerbose ) printf("%d bytes allocated\n", size);
+	
 }
 
 
 
 
-//loads obj datas
+//load obj datas
 static void obj_parse( ObjModel *model, FILE *file )
 {
-    int n=0;
-    int v=0;
-    int t=0;
-    int g=0;
-    int f = 0;
-	int s = 1; //smooth is ON by default
+    int n=0; //current normal
+    int v=0; //current vertex
+    int t=0; //current texCoord
+    int currentFace = 0; 
+	int s = 1; //smooth is on by default
 	char buf[16];
     int character = 0;
+	
+	/* a b c d : vertices indices in the file (absolute or relative)
+	   e f g h : texCoords indices in the file (absolute or relative)
+	   i j k l : normals indices in the file (absolute or relative)
+	   These variables are used to parse faces. A square face in the file is defined that way :
+	   f  a/e/i  b/f/j  c/g/k  d/h/l
+	*/
+	int a, b, c, d, e, f, g, h, i, j, k, l;
+	a = b = c = d = e = f = g = h = i = j = k = l = 0;
 
     rewind( file );
 
-    g_print("Loading datas...\n");
+    if( objVerbose ) printf("Loading datas...\n");
 
     while( character != EOF )
     {
@@ -177,7 +169,7 @@ static void obj_parse( ObjModel *model, FILE *file )
 						else s = 1;
 			break;	
 			
-			case 'o' :  //objects are not implemented yet. simply ignoring them should work
+			case 'o' :
 			case 'g' : 	//groups are not implemented yet
 			case 'u' : 	//usemtl
 			case 'm' :	//mtllib
@@ -189,85 +181,55 @@ static void obj_parse( ObjModel *model, FILE *file )
 							if( character == EOF ) break;
                         }   
             break;
-            case 'f' :
+            case 'f' :  //we must remember this shema :   f  a/e/i  b/f/j  c/g/k  d/h/l
 						if( model->numNorms == 0 && model->numTexCoor == 0 ) //only vertices
-						{
-
-							fscanf( file, " %d %d %d", &model->faces[f].v1, &model->faces[f].v2, &model->faces[f].v3 );
-							model->faces[f].v1 -= 1;
-							model->faces[f].v2 -= 1;
-							model->faces[f].v3 -= 1;
-						}
+							fscanf( file, " %d %d %d", &a, &b, &c );
 						else if( model->numTexCoor == 0 ) //only vertices and normals
-						{
-							fscanf( file, " %d//%d %d//%d %d//%d",
-									&model->faces[f].v1, &model->faces[f].vn1,
-									&model->faces[f].v2, &model->faces[f].vn2,
-									&model->faces[f].v3, &model->faces[f].vn3 );
-
-							model->faces[f].v1 -= 1; model->faces[f].vn1 -= 1;
-							model->faces[f].v2 -= 1; model->faces[f].vn2 -= 1;
-							model->faces[f].v3 -= 1; model->faces[f].vn3 -= 1;
-						}
+							fscanf( file, " %d//%d %d//%d %d//%d", &a, &i, &b, &j, &c, &k );
 						else if( model->numNorms == 0 ) //only vertices and texture coordinates
-						{
-							fscanf( file, " %d/%d %d/%d %d/%d",
-								&model->faces[f].v1, &model->faces[f].vt1,
-								&model->faces[f].v2, &model->faces[f].vt2,
-								&model->faces[f].v3, &model->faces[f].vt3 );
-
-								model->faces[f].v1 -= 1; model->faces[f].vt1 -= 1;
-								model->faces[f].v2 -= 1; model->faces[f].vt2 -= 1;
-								model->faces[f].v3 -= 1; model->faces[f].vt3 -= 1;
-						}
+							fscanf( file, " %d/%d %d/%d %d/%d", &a, &e, &b, &f, &c, &g );
 						else //vertices texture coordinates and normals
-						{
-							fscanf( file, " %d/%d/%d %d/%d/%d %d/%d/%d",
-								&model->faces[f].v1, &model->faces[f].vt1, &model->faces[f].vn1,
-								&model->faces[f].v2, &model->faces[f].vt2, &model->faces[f].vn2,
-								&model->faces[f].v3, &model->faces[f].vt3, &model->faces[f].vn3 );
-
-							model->faces[f].v1 -= 1; model->faces[f].vt1 -= 1; model->faces[f].vn1 -= 1;
-							model->faces[f].v2 -= 1; model->faces[f].vt2 -= 1; model->faces[f].vn2 -= 1;
-							model->faces[f].v3 -= 1; model->faces[f].vt3 -= 1; model->faces[f].vn3 -= 1;
-						}
+							fscanf( file, " %d/%d/%d %d/%d/%d %d/%d/%d", &a, &e, &i, &b, &f, &j, &c, &g, &k );
 						
+						//check wether the face is squared
 						character = fgetc(file);
 						character = fgetc(file);
-						if( isdigit(character) != 0 ) //square face
+						if( isdigit(character) != 0 || character == '-' ) //square face : we must read the last "d/h/l"
 						{
 							fseek( file, -1, SEEK_CUR );
-							model->faces[f].type = 4;
-							if( model->numNorms == 0 && model->numTexCoor == 0 )
-							{
-								fscanf( file, " %d", &model->faces[f].v4 );
-								model->faces[f].v4 -= 1;
-							}
-							else if( model->numTexCoor == 0 )
-							{
-								fscanf( file, " %d//%d", &model->faces[f].v4, &model->faces[f].vn4 );
-								model->faces[f].v4 -= 1; model->faces[f].vn4 -= 1;
-							}
-							else if( model->numNorms == 0 )
-							{
-								fscanf( file, " %d/%d", &model->faces[f].v4, &model->faces[f].vt4 );
-								model->faces[f].v4 -= 1; model->faces[f].vt4 -= 1;
-							}
-							else
-							{
-								fscanf( file, " %d/%d/%d", &model->faces[f].v4, &model->faces[f].vt4, &model->faces[f].vn4 );
-								model->faces[f].v4 -= 1; model->faces[f].vt4 -= 1; model->faces[f].vn4 -= 1;
-							}
+							model->faces[currentFace].type = 4;
+							
+							if( model->numNorms == 0 && model->numTexCoor == 0 ) 	fscanf( file, " %d", &d );
+							else if( model->numTexCoor == 0 ) 						fscanf( file, " %d//%d", &d, &l );
+							else if( model->numNorms == 0 ) 						fscanf( file, " %d/%d", &d, &h ); 
+							else 													fscanf( file, " %d/%d/%d", &d, &h, &l );
 						}
 						else //triangular face
 						{
 							fseek( file, -2, SEEK_CUR );
-							model->faces[f].type = 3;
+							model->faces[currentFace].type = 3;
 						}
 						
-						//all the faces following "s 1" or "s off" are afected by s
-						model->faces[f].smooth = s;
-						f++;
+						
+						//copies the indices a, b, c, d, e, f, etc... into the faces of our model struct
+						if( a < 0 ) //relative indices
+						{
+							model->faces[currentFace].v1 = v + a; model->faces[currentFace].vt1 = t + e; model->faces[currentFace].vn1 = n + i;
+							model->faces[currentFace].v2 = v + b; model->faces[currentFace].vt2 = t + f; model->faces[currentFace].vn2 = n + j;
+							model->faces[currentFace].v3 = v + c; model->faces[currentFace].vt3 = t + g; model->faces[currentFace].vn3 = n + k;
+							model->faces[currentFace].v4 = v + d; model->faces[currentFace].vt4 = t + h; model->faces[currentFace].vn4 = n + l;
+						}
+						else //absolute indices
+						{
+							model->faces[currentFace].v1 = a - 1; model->faces[currentFace].vt1 = e - 1; model->faces[currentFace].vn1 = i - 1;
+							model->faces[currentFace].v2 = b - 1; model->faces[currentFace].vt2 = f - 1; model->faces[currentFace].vn2 = j - 1;
+							model->faces[currentFace].v3 = c - 1; model->faces[currentFace].vt3 = g - 1; model->faces[currentFace].vn3 = k - 1;
+							model->faces[currentFace].v4 = d - 1; model->faces[currentFace].vt4 = h - 1; model->faces[currentFace].vn4 = l - 1;
+						}
+						
+						
+						model->faces[currentFace].smooth = s;
+						currentFace++;
 			break;
 			default :
 			break;
@@ -289,7 +251,7 @@ ObjModel* obj_load_from_file( const char* name )
 	savedLocale = strdup( locale );
 	setlocale( LC_ALL, "C" );
 	
-	/* check extension
+	/* check extension : You can enable it if you want
 	if( strstr(name, ".obj") == NULL ) {
 		if( strstr(name, ".OBJ") == NULL )
 		{
@@ -301,11 +263,11 @@ ObjModel* obj_load_from_file( const char* name )
 
 	
     //opening file
-    g_print("Opening %s...\n", name );
+    if( objVerbose ) printf("Opening %s...\n", name );
     file = g_fopen( name, "r" );
     if( !file )
     {
-        g_print("Impossible to open %s\n", name );
+        printf("Impossible to open %s\n", name );
         return NULL;
     }
 	
@@ -316,7 +278,7 @@ ObjModel* obj_load_from_file( const char* name )
 
 	
     fclose( file );
-    g_print("done\n\n");
+    if( objVerbose ) printf("done\n\n");
 	
 	
 	setlocale( LC_ALL, savedLocale );
@@ -465,6 +427,35 @@ void obj_draw_wired( ObjModel *model )
 			break;
 		}
 	}
+}
+
+
+void obj_print_face( ObjModel *model, int f )
+{
+	
+	printf("face %d\n", f );
+	printf("vertex :\n");
+	printf("1  -  x=%f  y=%f  z=%f\n", model->vertices[model->faces[f].v1].x, model->vertices[model->faces[f].v1].y, model->vertices[model->faces[f].v1].z );
+	printf("2  -  x=%f  y=%f  z=%f\n", model->vertices[model->faces[f].v2].x, model->vertices[model->faces[f].v2].y, model->vertices[model->faces[f].v2].z );
+	printf("3  -  x=%f  y=%f  z=%f\n", model->vertices[model->faces[f].v3].x, model->vertices[model->faces[f].v3].y, model->vertices[model->faces[f].v3].z );
+	
+	if( model->numTexCoor != 0 )
+	{
+		printf("Texture coordinates :\n");
+		printf("1  -  x=%f  y=%f\n", model->texCoor[model->faces[f].vt1].x, model->texCoor[model->faces[f].vt1].y );
+		printf("2  -  x=%f  y=%f\n", model->texCoor[model->faces[f].vt2].x, model->texCoor[model->faces[f].vt2].y );
+		printf("2  -  x=%f  y=%f\n", model->texCoor[model->faces[f].vt3].x, model->texCoor[model->faces[f].vt3].y );
+	}
+	
+	if( model->numNorms != 0)
+	{
+		printf("Normals :\n");
+		printf("1  -  x=%f  y=%f  z=%f\n", model->normals[model->faces[f].vn1].x, model->normals[model->faces[f].vn1].y, model->normals[model->faces[f].vn1].z );
+		printf("2  -  x=%f  y=%f  z=%f\n", model->normals[model->faces[f].vn2].x, model->normals[model->faces[f].vn2].y, model->normals[model->faces[f].vn2].z );
+		printf("3  -  x=%f  y=%f  z=%f\n", model->normals[model->faces[f].vn3].x, model->normals[model->faces[f].vn3].y, model->normals[model->faces[f].vn3].z );
+	}
+	
+	printf("\n");
 }
 
 //------------------------------------------------------------------------------------------------------------
