@@ -176,7 +176,7 @@
             </child>
             <child>
               <object class="GtkToggleButton" id="lines">
-                <property name="label" translatable="yes">lines</property>
+                <property name="label" translatable="yes">wireframe</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
