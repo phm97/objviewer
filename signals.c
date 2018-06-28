@@ -24,90 +24,7 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 #include "utils.h"
 
 
-void screenshot( GtkWidget *widget, GtkGlWidget *glWidget )
-{
-	GtkWidget *dialog;
-	GtkWindow *parentWindow;
-	GtkFileChooser *chooser;
-	GtkFileFilter *filter;
-	int res;
-	char *filename;
-	
-	GdkGLContext *glcontext = gtk_widget_get_gl_context( GTK_WIDGET(glWidget) );
-	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( GTK_WIDGET(glWidget) );
-	
-	if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext)) return;
-	
-	parentWindow = GTK_WINDOW( gtk_widget_get_toplevel(widget) );
-	dialog = gtk_file_chooser_dialog_new ("Open File", parentWindow, GTK_FILE_CHOOSER_ACTION_SAVE, "_Cancel", GTK_RESPONSE_CANCEL, "_Save", GTK_RESPONSE_ACCEPT, NULL);
-	chooser = GTK_FILE_CHOOSER (dialog);
-	
-	gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
-	gtk_file_chooser_set_current_name (chooser, "Untitled.bmp" );
-	
-	filter = gtk_file_filter_new();
-	gtk_file_filter_add_pattern (filter, "*.bmp");
-	gtk_file_filter_set_name( filter, "Windows  bitmap");
-	gtk_file_chooser_add_filter( chooser, filter );
-	
-	res = gtk_dialog_run (GTK_DIALOG (dialog));
-	if (res == GTK_RESPONSE_ACCEPT)
-	{
-		filename = gtk_file_chooser_get_filename(chooser);
-		take_screenshot(filename);
-		g_free (filename);
-	}
-	
-	gtk_widget_destroy (dialog);
-	gdk_gl_drawable_gl_end (gldrawable);
-}
-
-void view_bounding_box( GtkWidget *widget, GtkGlWidget *glWidget )
-{
-	gboolean b;
-	
-	b = gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) );
-	gtk_gl_widget_show_bounding_box( glWidget, b);
-	gtk_gl_widget_actualize( glWidget );
-}
-
-void recenter( GtkWidget *widget, GtkGlWidget *glWidget )
-{
-	gboolean b;
-	
-	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
-	gtk_gl_widget_center_model( glWidget, b );
-	gtk_gl_widget_actualize( glWidget );
-}
-
-void lines( GtkWidget *widget, GtkGlWidget *glWidget )
-{
-	gboolean mode;
-	
-	mode = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
-	gtk_gl_widget_set_wired_mode( glWidget, mode );
-	gtk_gl_widget_actualize(glWidget);
-}
-
-void centroid( GtkWidget *widget, GtkGlWidget *glWidget )
-{
-	gboolean b;
-	
-	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
-	gtk_gl_widget_show_centroid( glWidget, b );
-	gtk_gl_widget_actualize( glWidget );
-}
-
-void view_origin( GtkWidget *widget, GtkGlWidget *glWidget )
-{
-	gboolean a;
-	
-	a = gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) );
-	gtk_gl_widget_show_origin( glWidget, a);
-	gtk_gl_widget_actualize( glWidget );
-}
-
-void open( GtkWidget *widget, GtkGlWidget *glWidget )
+void open_obj_file( GtkWidget *widget, GtkGlWidget *glWidget )
 {
 	GtkWidget *dialog, *parentWindow;
 	GtkFileChooser *chooser;
@@ -185,6 +102,98 @@ void about( GtkWidget *widget, gpointer data )
                         NULL);
 }
 
+void screenshot( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	GtkWidget *dialog;
+	GtkWindow *parentWindow;
+	GtkFileChooser *chooser;
+	GtkFileFilter *filter;
+	int res;
+	char *filename;
+	
+	GdkGLContext *glcontext = gtk_widget_get_gl_context( GTK_WIDGET(glWidget) );
+	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( GTK_WIDGET(glWidget) );
+	
+	if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext)) return;
+	
+	parentWindow = GTK_WINDOW( gtk_widget_get_toplevel(widget) );
+	dialog = gtk_file_chooser_dialog_new ("Open File", parentWindow, GTK_FILE_CHOOSER_ACTION_SAVE, "_Cancel", GTK_RESPONSE_CANCEL, "_Save", GTK_RESPONSE_ACCEPT, NULL);
+	chooser = GTK_FILE_CHOOSER (dialog);
+	
+	gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
+	gtk_file_chooser_set_current_name (chooser, "Untitled.bmp" );
+	
+	filter = gtk_file_filter_new();
+	gtk_file_filter_add_pattern (filter, "*.bmp");
+	gtk_file_filter_set_name( filter, "Windows  bitmap");
+	gtk_file_chooser_add_filter( chooser, filter );
+	
+	res = gtk_dialog_run (GTK_DIALOG (dialog));
+	if (res == GTK_RESPONSE_ACCEPT)
+	{
+		filename = gtk_file_chooser_get_filename(chooser);
+		take_screenshot(filename);
+		g_free (filename);
+	}
+	
+	gtk_widget_destroy (dialog);
+	gdk_gl_drawable_gl_end (gldrawable);
+}
+
+void view_bounding_box( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	gboolean b;
+	
+	b = gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) );
+	gtk_gl_widget_show_bounding_box( glWidget, b);
+	gtk_gl_widget_actualize( glWidget );
+}
+
+void view_origin( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	gboolean a;
+	
+	a = gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) );
+	gtk_gl_widget_show_origin( glWidget, a);
+	gtk_gl_widget_actualize( glWidget );
+}
+
+void recenter( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	gboolean b;
+	
+	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
+	gtk_gl_widget_center_model( glWidget, b );
+	gtk_gl_widget_actualize( glWidget );
+}
+
+void lines( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	gboolean mode;
+	
+	mode = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
+	gtk_gl_widget_set_wired_mode( glWidget, mode );
+	gtk_gl_widget_actualize(glWidget);
+}
+
+void centroid( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	gboolean b;
+	
+	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
+	gtk_gl_widget_show_centroid( glWidget, b );
+	gtk_gl_widget_actualize( glWidget );
+}
+
+void toggle_light( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	gboolean b;
+	
+	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
+	gtk_gl_widget_enable_lighting( glWidget, b );
+	gtk_gl_widget_actualize( glWidget );
+}
+
 
 void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 {
@@ -207,7 +216,7 @@ void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 	g_signal_connect( widget, "toggled", G_CALLBACK (view_origin), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "open" );
-	g_signal_connect( widget, "activate", G_CALLBACK (open), glWidget );
+	g_signal_connect( widget, "activate", G_CALLBACK (open_obj_file), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "opentexture" );
 	g_signal_connect( widget, "activate", G_CALLBACK (open_texture), glWidget );
@@ -222,10 +231,14 @@ void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 	g_signal_connect( widget, "toggled", G_CALLBACK (recenter), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "centroid" );
+
 	g_signal_connect( widget, "clicked", G_CALLBACK (centroid), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "lines" );
 	g_signal_connect( widget, "toggled", G_CALLBACK (lines), glWidget );
+	
+	widget = gtk_builder_get_object ( builder, "togglelight" );
+	g_signal_connect( widget, "toggled", G_CALLBACK (toggle_light), glWidget );
 }
 
 
