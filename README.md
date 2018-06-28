@@ -24,7 +24,6 @@ FreeBSD license
 ## Notes
 Maybe I will port this little app to GTK+ 3 and OpenGL 3.3 in the future, but nothing is planed for the moment.
 If you have any observation about the code or if you have any bug to report, you can mail me at phm.vilain@gmail.com
-If you want to use this code to make a paid software, please let me know.
 
 ## Screenshots
 ![objviewer screenshot](./screenshot.png)
