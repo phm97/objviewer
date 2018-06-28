@@ -483,8 +483,12 @@ static void gtk_gl_widget_destroy( GtkObject * object )
 	g_return_if_fail (GTK_IS_GL_WIDGET(object));
 
 	glWidget = GTK_GL_WIDGET(object);
-	if( glWidget->priv->hasModel ) obj_delete( glWidget->priv->model );
-	g_free( glWidget->priv );
+	if( glWidget->priv != NULL )
+	{
+		if( glWidget->priv->hasModel ) obj_delete( glWidget->priv->model );
+		g_free( glWidget->priv );
+		glWidget->priv = NULL;
+	}
 	
 	klass = gtk_type_class(gtk_widget_get_type ());
 
@@ -492,7 +496,6 @@ static void gtk_gl_widget_destroy( GtkObject * object )
 	{
 		(* GTK_OBJECT_CLASS (klass)->destroy) (object);
 	}
-	
 }
 
 static void gtk_gl_widget_class_init( GtkGlWidgetClass *klass )

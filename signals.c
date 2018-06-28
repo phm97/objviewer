@@ -24,7 +24,7 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 #include "utils.h"
 
 
-void open( GtkWidget *widget, GtkGlWidget *glWidget )
+void open_obj_file( GtkWidget *widget, GtkGlWidget *glWidget )
 {
 	GtkWidget *dialog, *parentWindow;
 	GtkFileChooser *chooser;
@@ -216,7 +216,7 @@ void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 	g_signal_connect( widget, "toggled", G_CALLBACK (view_origin), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "open" );
-	g_signal_connect( widget, "activate", G_CALLBACK (open), glWidget );
+	g_signal_connect( widget, "activate", G_CALLBACK (open_obj_file), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "opentexture" );
 	g_signal_connect( widget, "activate", G_CALLBACK (open_texture), glWidget );
@@ -231,6 +231,7 @@ void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 	g_signal_connect( widget, "toggled", G_CALLBACK (recenter), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "centroid" );
+
 	g_signal_connect( widget, "clicked", G_CALLBACK (centroid), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "lines" );
