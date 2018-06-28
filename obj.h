@@ -49,7 +49,6 @@ struct ObjModel
 };
 
 
-void obj_enable_verbose( int boolean );
 ObjModel* obj_load_from_file( const char* name );
 void obj_draw( ObjModel *model );
 void obj_draw_wired( ObjModel *model );

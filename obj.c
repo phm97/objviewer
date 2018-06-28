@@ -1,3 +1,22 @@
+/*
+Copyright 2018 VILAIN Pierre
+
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following 
+disclaimer in the documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, 
+BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
+SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <stdio.h>
@@ -11,12 +30,6 @@
 #include "obj.h"
 
 
-static int objVerbose = 0;
-
-void obj_enable_verbose( int boolean )
-{
-	objVerbose = boolean;
-}
 
 //--------------------------------------------------------------------------
 //fonctions for loading obj 3D models
@@ -87,15 +100,11 @@ static void obj_first_read( ObjModel *model, FILE *file )
     }
 
 	
-    if( objVerbose )
-    {
-        printf("-> %d vertices\n", model->numVertices );
-        printf("-> %d texture coordinates\n", model->numTexCoor );
-        printf("-> %d normals\n", model->numNorms );
-        printf("-> %d faces\n", model->numFaces );
-        printf("-> %d groups\n", model->numGroups );
-    }
-	
+    g_print("-> %d vertices\n", model->numVertices );
+    g_print("-> %d texture coordinates\n", model->numTexCoor );
+    g_print("-> %d normals\n", model->numNorms );
+    g_print("-> %d faces\n", model->numFaces );
+    g_print("-> %d groups\n", model->numGroups );
 	
 	
 	model->vertices = (vec3d*) malloc( model->numVertices * sizeof( vec3d ) );
@@ -109,7 +118,7 @@ static void obj_first_read( ObjModel *model, FILE *file )
 	
 	size = sizeof(ObjModel) + (model->numVertices * sizeof( vec3d )) + (model->numTexCoor * sizeof( vec2d ))
 			+ (model->numNorms * sizeof( vec3d)) + (model->numFaces * sizeof( face ));
-	if( objVerbose ) printf("%d bytes allocated\n", size);
+	g_print("%d bytes allocated\n", size);
 	
 }
 
@@ -138,7 +147,7 @@ static void obj_parse( ObjModel *model, FILE *file )
 
     rewind( file );
 
-    if( objVerbose ) printf("Loading datas...\n");
+    g_print("Loading datas...\n");
 
     while( character != EOF )
     {
@@ -263,7 +272,7 @@ ObjModel* obj_load_from_file( const char* name )
 
 	
     //opening file
-    if( objVerbose ) printf("Opening %s...\n", name );
+    g_print("Opening %s...\n", name );
     file = g_fopen( name, "r" );
     if( !file )
     {
@@ -278,7 +287,7 @@ ObjModel* obj_load_from_file( const char* name )
 
 	
     fclose( file );
-    if( objVerbose ) printf("done\n\n");
+    g_print("done\n\n");
 	
 	
 	setlocale( LC_ALL, savedLocale );

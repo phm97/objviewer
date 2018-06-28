@@ -44,6 +44,7 @@ struct _GtkGlWidgetPrivate
 	gboolean wiredMode;
 	gboolean centerModel;
 	gboolean showCentroid;
+	gboolean enableLighting;
 	
 	float xBegin;
 	float yBegin;
@@ -59,6 +60,13 @@ struct _GtkGlWidgetPrivate
 	float cz;
 };
 
+void gtk_gl_widget_enable_lighting( GtkGlWidget *glWidget, gboolean b )
+{
+	g_return_if_fail(glWidget != NULL);
+	g_return_if_fail(GTK_IS_GL_WIDGET(glWidget));
+	
+	glWidget->priv->enableLighting = b;
+}
 
 void gtk_gl_widget_center_model( GtkGlWidget *glWidget, gboolean b )
 {
@@ -130,6 +138,9 @@ static void gtk_gl_widget_init_gl( GtkGlWidget *glWidget )
 	if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext)) return;
 	
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_NORMALIZE);
+	glClearColor( 0.0, 0.0, 0.0, 1.0 );
 	
 	g_print ("Graphic card   : %s\n", (char *) glGetString (GL_RENDERER));
 	g_print ("OpenGL version : %s\n", (char *) glGetString (GL_VERSION));
@@ -153,12 +164,13 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 	//OpenGL Begin
 	if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext)) return;
 	
-	glClearColor( 0.0, 0.0, 0.0, 1.0 );
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
 
+	glDisable(GL_LIGHTING);
+	
 	build_rotmatrix( matrix, glWidget->priv->quatRot );
 	if( glWidget->priv->hasModel )
 	{
@@ -185,8 +197,13 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 			glPopMatrix();
 		}
 		
+		if( glWidget->priv->enableLighting ) glEnable(GL_LIGHTING);
+		
 		if( glWidget->priv->showCentroid )  //draw a blue sphere at the location of the center of gravity
 		{
+			float blueCentroid[] = { 0.0, 0.0, 1.0, 1.0 };
+			
+			glMaterialfv( GL_FRONT, GL_DIFFUSE, blueCentroid );
 			glPushMatrix();
 			glMultMatrixf(&matrix[0][0]);
 			glScalef( glWidget->priv->scale, glWidget->priv->scale, glWidget->priv->scale );
@@ -204,6 +221,9 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 		}
 		else glDisable( GL_TEXTURE_2D );
 		
+		float modelMaterialDefault[] = { 1.0, 1.0, 1.0, 1.0 };
+		
+		glMaterialfv( GL_FRONT, GL_DIFFUSE, modelMaterialDefault );
 		glPushMatrix();
 		glMultMatrixf(&matrix[0][0]);
 		glScalef( glWidget->priv->scale, glWidget->priv->scale, glWidget->priv->scale );
@@ -215,10 +235,17 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 	}
 	else
 	{
+		
+
+		float teapotMaterial[] = { 1.0, 0.0, 0.0, 1.0 };
+		
 		gluLookAt(0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.); 
 		
+		if( glWidget->priv->enableLighting ) glEnable( GL_LIGHTING );
+		glMaterialfv( GL_FRONT, GL_DIFFUSE, teapotMaterial );
 		glPushMatrix();
 		glMultMatrixf(&matrix[0][0]);
+		glScalef( glWidget->priv->scale, glWidget->priv->scale, glWidget->priv->scale );
 		glColor3ub(255,0,0);
 		if( glWidget->priv->wiredMode ) gdk_gl_draw_teapot( FALSE, 1.8 );
 		else gdk_gl_draw_teapot( TRUE, 1.8 );
@@ -501,6 +528,7 @@ static void gtk_gl_widget_init( GtkGlWidget *glWidget )
 	glWidget->priv->showCentroid = FALSE;
 	glWidget->priv->wiredMode = FALSE;
 	glWidget->priv->centerModel = FALSE;
+	glWidget->priv->enableLighting = FALSE;
 
 	glWidget->priv->xBegin = 0.0;
 	glWidget->priv->yBegin = 0.0;
