@@ -63,7 +63,7 @@ void gtk_gl_widget_show_centroid( GtkGlWidget *glWidget, gboolean b );
 void gtk_gl_widget_actualize( GtkGlWidget *glWidget );
 void gtk_gl_widget_set_wired_mode( GtkGlWidget *glWidget, gboolean b );
 void gtk_gl_widget_center_model( GtkGlWidget *glWidget, gboolean b );
-
+void gtk_gl_widget_enable_lighting( GtkGlWidget *glWidget, gboolean b );
 
 G_END_DECLS
 
