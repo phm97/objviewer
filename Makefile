@@ -3,7 +3,7 @@
 TARGET=objviewer
 
 CC = gcc
-LDFLAGS = `pkg-config --libs gtkglext-1.0`
+LDFLAGS = `pkg-config --libs gtkglext-1.0` -lm
 CFLAGS = `pkg-config --cflags gtkglext-1.0` -O6
 
 RELEASEDIR = bin
