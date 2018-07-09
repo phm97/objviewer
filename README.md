@@ -3,7 +3,7 @@ Obj Viewer is a basic Wavefront object file loader made with GTK+2.0, GtkGLExt a
 
 
 ## Features
-Obj viewer works fine with a lot of obj files. However, some files contain some instructions not supported by this loader. Loading such files results in a crash of the application.
+Obj viewer works fine with a lot of obj files. However, some files contain instructions not supported by this loader. Loading such files may result in a crash of the application.
 Here are the instructions not supported
 - vp
 - l
@@ -16,14 +16,19 @@ Here are the instructions not supported
 - sp
 - and more
 
-The following features are supported
-- normals
-- texture coordinates
+Some instructions are just ingnored :
+- o
+- g
+- mtllib
+- usemtl
+
+And here are the supported features :
 - triangular faces
 - square faces
 - faces defined with absolute indices
 - faces defined with relative indices
 
+Note that textured parts and non-textured parts can not cohabit in the same file. The obj files loaded must be fully textured or fully untextured, or else, it will result in a crash.
 objviewer does not support Mtl files yet. This may come in the future.
 
 Texture files are loaded with GdkPixbuf. The supported file formats are the following :
@@ -44,7 +49,7 @@ Then, Type, "make"
 
 On, Ubuntu/Debian/Mint, you can build it that way :
 ```
-sudo apt-get install libgtkglext1-dev
+sudo apt-get install libgtkglext1-dev git build-essential
 git clone https://github.com/phm97/objviewer.git
 cd objviewer
 make
