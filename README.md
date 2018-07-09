@@ -4,6 +4,7 @@ Obj Viewer is a basic Wavefront object file loader made with GTK+2.0, GtkGLExt a
 
 ## Features
 objviewer does not support Mtl files yet. This may come in the future.
+
 Texture files are loaded with GdkPixbuf. The supported file formats are the following :
 - bmp
 - tga
@@ -17,6 +18,14 @@ To build objviewer, install the following dependencies :
 - GNU make
 - GTK+ 2
 - GtkGLExt
+
+Then, Type, "make"
+
+On, Ubuntu/Debian/Mint, you can build it that way :
+```
+sudo apt-get install libgtkglext1-dev
+make
+```
 
 ## license
 FreeBSD license
