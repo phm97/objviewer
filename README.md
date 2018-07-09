@@ -24,6 +24,8 @@ Then, Type, "make"
 On, Ubuntu/Debian/Mint, you can build it that way :
 ```
 sudo apt-get install libgtkglext1-dev
+git clone https://github.com/phm97/objviewer.git
+cd objviewer
 make
 ```
 
