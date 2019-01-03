@@ -1,4 +1,4 @@
-# quickmap makefile v1.0
+# objviewer makefile v1.0
 
 TARGET=objviewer
 
@@ -24,10 +24,10 @@ HEADERFILES = signals.h \
 	texture.h
 
 
-all: $(OBJ) $(HEADERFILES)
+all: $(OBJSDIR) $(OBJ) $(HEADERFILES)
 	$(CC) $(OBJSDIR)/*.o -o $(RELEASEDIR)/$(TARGET) $(LDFLAGS)
 	
-$(OBJSDIR)/%.o: %.c $(OBJSDIR) $(SRC)
+$(OBJSDIR)/%.o: %.c $(SRC)
 	$(CC) -c $< -o $@ $(CFLAGS)
 	
 $(OBJSDIR):
