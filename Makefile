@@ -1,4 +1,4 @@
-# objviewer makefile v1.0
+# objviewer makefile
 
 TARGET=objviewer
 
@@ -9,25 +9,27 @@ CFLAGS = `pkg-config --cflags gtkglext-1.0` -O6
 RELEASEDIR = bin
 OBJSDIR = obj
 
+
+
 OBJ = $(OBJSDIR)/main.o \
 	$(OBJSDIR)/signals.o \
 	$(OBJSDIR)/obj.o \
 	$(OBJSDIR)/trackball.o \
 	$(OBJSDIR)/utils.o \
-	$(OBJSDIR)/texture.o \
-	$(OBJSDIR)/gtkglwidget.o
+	$(OBJSDIR)/gtkglwidget.o \
+	$(OBJSDIR)/mtl.o
 HEADERFILES = signals.h \
 	obj.h \
 	gtkglwidget.h \
 	trackball.h \
 	utils.h \
-	texture.h
+	mtl.h
 
 
 all: $(OBJSDIR) $(OBJ) $(HEADERFILES)
-	$(CC) $(OBJSDIR)/*.o -o $(RELEASEDIR)/$(TARGET) $(LDFLAGS)
+	$(CC) $(OBJ) -o $(RELEASEDIR)/$(TARGET) $(LDFLAGS)
 	
-$(OBJSDIR)/%.o: %.c $(SRC)
+$(OBJSDIR)/%.o: %.c
 	$(CC) -c $< -o $@ $(CFLAGS)
 	
 $(OBJSDIR):
@@ -39,4 +41,4 @@ clean:
 	rm -rf $(OBJSDIR)/*.o
 	
 mrproper: clean
-	rm -rf $(RELEASEDIR)/quickmap
+	rm -rf $(RELEASEDIR)/$(TARGET)
