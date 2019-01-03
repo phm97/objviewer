@@ -26,10 +26,10 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 #include "trackball.h"
 #include "obj.h"
 #include "utils.h"
-#include "texture.h"
 
 #define GTK_GL_WIDGET_DEFAULT_SIZE 300
 
+static void gtk_gl_widget_draw( GtkGlWidget *glWidget );
 
 struct _GtkGlWidgetPrivate
 {
@@ -55,9 +55,13 @@ struct _GtkGlWidgetPrivate
 	float y;
 	float z;
 	
-	float cx; //centroid of the model
+	float cx; //center of gravity of the model
 	float cy;
 	float cz;
+	
+	float bgColorRed; //Background Color
+	float bgColorGreen;
+	float bgColorBlue;
 };
 
 void gtk_gl_widget_enable_lighting( GtkGlWidget *glWidget, gboolean b )
@@ -66,6 +70,7 @@ void gtk_gl_widget_enable_lighting( GtkGlWidget *glWidget, gboolean b )
 	g_return_if_fail(GTK_IS_GL_WIDGET(glWidget));
 	
 	glWidget->priv->enableLighting = b;
+	gtk_gl_widget_draw( glWidget );
 }
 
 void gtk_gl_widget_center_model( GtkGlWidget *glWidget, gboolean b )
@@ -74,6 +79,7 @@ void gtk_gl_widget_center_model( GtkGlWidget *glWidget, gboolean b )
 	g_return_if_fail(GTK_IS_GL_WIDGET(glWidget));
 	
 	glWidget->priv->centerModel = b;
+	gtk_gl_widget_draw( glWidget );
 }
 
 void gtk_gl_widget_show_centroid( GtkGlWidget *glWidget, gboolean b )
@@ -82,6 +88,7 @@ void gtk_gl_widget_show_centroid( GtkGlWidget *glWidget, gboolean b )
 	g_return_if_fail(GTK_IS_GL_WIDGET(glWidget));
 	
 	glWidget->priv->showCentroid = b;
+	gtk_gl_widget_draw( glWidget );
 }
 
 void gtk_gl_widget_set_wired_mode( GtkGlWidget *glWidget, gboolean b )
@@ -90,6 +97,7 @@ void gtk_gl_widget_set_wired_mode( GtkGlWidget *glWidget, gboolean b )
 	g_return_if_fail(GTK_IS_GL_WIDGET(glWidget));
 	
 	glWidget->priv->wiredMode = b;
+	gtk_gl_widget_draw( glWidget );
 }
 
 ObjModel *gtk_gl_widget_get_model( GtkGlWidget *glWidget )
@@ -116,6 +124,7 @@ void gtk_gl_widget_show_bounding_box( GtkGlWidget *glWidget, gboolean b )
 	g_return_if_fail (GTK_IS_GL_WIDGET(glWidget));
 	
 	glWidget->priv->showBoundingBox = b;
+	gtk_gl_widget_draw( glWidget );
 }
 
 void gtk_gl_widget_show_origin( GtkGlWidget *glWidget, gboolean b )
@@ -124,6 +133,31 @@ void gtk_gl_widget_show_origin( GtkGlWidget *glWidget, gboolean b )
 	g_return_if_fail (GTK_IS_GL_WIDGET(glWidget));
 	
 	glWidget->priv->showOrigin = b;
+	gtk_gl_widget_draw( glWidget );
+}
+
+void gtk_gl_widget_set_background_color( GtkGlWidget *glWidget, GdkColor color )
+{
+	g_return_if_fail(glWidget != NULL);
+	g_return_if_fail (GTK_IS_GL_WIDGET(glWidget));
+	
+	glWidget->priv->bgColorRed = (float)color.red/65535.0;
+	glWidget->priv->bgColorGreen = (float)color.green/65535.0;
+	glWidget->priv->bgColorBlue = (float)color.blue/65535.0;
+	
+	gtk_gl_widget_draw( glWidget );
+}
+
+void gtk_gl_widget_get_background_color( GtkGlWidget *glWidget, GdkColor *color )
+{
+	g_return_if_fail(glWidget != NULL);
+	g_return_if_fail(color != NULL);
+	g_return_if_fail (GTK_IS_GL_WIDGET(glWidget));
+	
+	color->pixel = 0;
+	color->red = (guint16)(glWidget->priv->bgColorRed * 65535);
+	color->green = (guint16)(glWidget->priv->bgColorGreen * 65535);
+	color->blue = (guint16)(glWidget->priv->bgColorBlue * 65535);
 }
 
 
@@ -140,7 +174,8 @@ static void gtk_gl_widget_init_gl( GtkGlWidget *glWidget )
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_NORMALIZE);
-	glClearColor( 0.0, 0.0, 0.0, 1.0 );
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	g_print ("Graphic card   : %s\n", (char *) glGetString (GL_RENDERER));
 	g_print ("OpenGL version : %s\n", (char *) glGetString (GL_VERSION));
@@ -164,6 +199,7 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 	//OpenGL Begin
 	if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext)) return;
 	
+	glClearColor( glWidget->priv->bgColorRed, glWidget->priv->bgColorGreen, glWidget->priv->bgColorBlue, 1.0 ); 
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
     glMatrixMode( GL_MODELVIEW );
@@ -221,9 +257,11 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 		}
 		else glDisable( GL_TEXTURE_2D );
 		
-		float modelMaterialDefault[] = { 1.0, 1.0, 1.0, 1.0 };
+		float modelMaterialDefaultDiffuse[] = { 0.8, 0.8, 0.8, 1.0 };
+		float modelMaterialDefaultAmbient[] = { 0.2, 0.2, 0.2, 1.0 };
 		
-		glMaterialfv( GL_FRONT, GL_DIFFUSE, modelMaterialDefault );
+		glMaterialfv( GL_FRONT, GL_DIFFUSE, modelMaterialDefaultDiffuse );
+		glMaterialfv( GL_FRONT, GL_AMBIENT, modelMaterialDefaultAmbient );
 		glPushMatrix();
 		glMultMatrixf(&matrix[0][0]);
 		glScalef( glWidget->priv->scale, glWidget->priv->scale, glWidget->priv->scale );
@@ -259,14 +297,6 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 	
 	//OpenGL end
 	gdk_gl_drawable_gl_end (gldrawable);
-}
-
-void gtk_gl_widget_actualize( GtkGlWidget *glWidget )
-{
-	g_return_if_fail(glWidget != NULL);
-	g_return_if_fail (GTK_IS_GL_WIDGET(glWidget));
-	
-	gtk_gl_widget_draw(glWidget);
 }
 
 
@@ -546,6 +576,9 @@ static void gtk_gl_widget_init( GtkGlWidget *glWidget )
 	glWidget->priv->cx = 0.0;
 	glWidget->priv->cy = 0.0;
 	glWidget->priv->cz = 0.0;
+	glWidget->priv->bgColorRed = 0.0;
+	glWidget->priv->bgColorGreen = 0.0;
+	glWidget->priv->bgColorBlue = 0.0;
 }
 
 GtkType gtk_gl_widget_get_type()

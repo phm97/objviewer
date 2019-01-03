@@ -5,7 +5,7 @@
   <object class="GtkImage" id="image1">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="stock">gtk-select-color</property>
+    <property name="stock">gtk-add</property>
     <property name="icon-size">1</property>
   </object>
   <object class="GtkImage" id="image4">
@@ -56,7 +56,7 @@
                     </child>
                     <child>
                       <object class="GtkImageMenuItem" id="screenshot">
-                        <property name="label" translatable="yes">screenshot</property>
+                        <property name="label" translatable="yes">Screenshot</property>
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="image">image4</property>
@@ -105,6 +105,20 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="label" translatable="yes">Origin</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparatorMenuItem" id="separator4">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkImageMenuItem" id="bg-color">
+                        <property name="label">gtk-select-color</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_stock">True</property>
                       </object>
                     </child>
                   </object>

@@ -17,8 +17,10 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT
 OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <GL/gl.h>
 #include <gtk/gtk.h>
 #include <gtk/gtkgl.h>
+
 
 #include "gtkglwidget.h"
 #include "utils.h"
@@ -30,9 +32,9 @@ void open_obj_file( GtkWidget *widget, GtkGlWidget *glWidget )
 	GtkFileChooser *chooser;
 	GtkFileFilter *filter;
 	int res;
-	char *filename;
+	char *filename, *basename;
 
-	parentWindow = gtk_widget_get_toplevel(widget);
+	parentWindow = gtk_widget_get_toplevel(glWidget);
 	dialog = gtk_file_chooser_dialog_new ("Open File", GTK_WINDOW(parentWindow), GTK_FILE_CHOOSER_ACTION_OPEN, "_Cancel", GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, NULL);
 	chooser = GTK_FILE_CHOOSER (dialog);
 	gtk_file_chooser_set_select_multiple( chooser, FALSE );
@@ -45,9 +47,16 @@ void open_obj_file( GtkWidget *widget, GtkGlWidget *glWidget )
 	res = gtk_dialog_run (GTK_DIALOG (dialog));
 	if (res == GTK_RESPONSE_ACCEPT)
 	{
-
 		filename = gtk_file_chooser_get_filename (chooser);
 		gtk_gl_widget_open_model( glWidget, filename );
+		
+		if( gtk_gl_widget_has_model( glWidget ) )
+		{
+			basename = g_path_get_basename( filename );
+			gtk_window_set_title( GTK_WINDOW(parentWindow), basename );
+			g_free(basename);
+		}
+		
 		g_free (filename);
 	}
 
@@ -60,7 +69,7 @@ void open_texture( GtkWidget *widget, GtkGlWidget *glWidget )
 	int res;
 	char *filename;
 
-	parentWindow = gtk_widget_get_toplevel(widget);
+	parentWindow = gtk_widget_get_toplevel(glWidget);
 	
 	if( gtk_gl_widget_has_model(glWidget) ==  TRUE )
 	{
@@ -83,23 +92,33 @@ void open_texture( GtkWidget *widget, GtkGlWidget *glWidget )
 
 }
 
-void about( GtkWidget *widget, gpointer data )
+void about( GtkWidget *widget, GtkWidget *window )
 {
-	GtkWidget *parentWindow;
+	GdkPixbuf *openglLogo;
 	
 	const gchar *authors[] = {
+		"Obj Viewer :",
 		"Pierre Vilain",
+		" ",
+		"Trackball Code :",
+		"Gavin Bell",
+		"Mark Grossman",
+		"Paul Haeberli",
+		"Henry Moreton",
+		"David M. Ciemiewicz",
 		NULL
 	};
 	
-	parentWindow = gtk_widget_get_toplevel(widget);
+	openglLogo = gdk_pixbuf_new_from_file( "OpenGL_100px_June16.png", NULL );
 	
-	gtk_show_about_dialog (GTK_WINDOW (parentWindow),
+	gtk_show_about_dialog( GTK_WINDOW (window),
                         "program-name", "Obj Viewer",
-						"logo-icon-name", "help-about",
-                        "comments", "This program uses GTK+ 2 and OpenGL\n\nThe trackball camera used in this software is developped by Silicon Graphics. See trackball.h in the source code for more information",
+						"logo", openglLogo,
+                        "comments", "This program uses GTK+ 2, GtkGLExt and OpenGL 1.2\n\n OpenGL and the oval logo are trademarks or registered trademarks of Hewlett Packard Enterprise in the United States and/or other countries worldwide.",
                         "authors", authors,
                         NULL);
+						
+	g_object_unref( openglLogo );
 }
 
 void screenshot( GtkWidget *widget, GtkGlWidget *glWidget )
@@ -146,7 +165,6 @@ void view_bounding_box( GtkWidget *widget, GtkGlWidget *glWidget )
 	
 	b = gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) );
 	gtk_gl_widget_show_bounding_box( glWidget, b);
-	gtk_gl_widget_actualize( glWidget );
 }
 
 void view_origin( GtkWidget *widget, GtkGlWidget *glWidget )
@@ -155,7 +173,31 @@ void view_origin( GtkWidget *widget, GtkGlWidget *glWidget )
 	
 	a = gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) );
 	gtk_gl_widget_show_origin( glWidget, a);
-	gtk_gl_widget_actualize( glWidget );
+}
+
+void background_color( GtkWidget *widget, GtkGlWidget *glWidget )
+{
+	GtkWidget *dialog, *colorSelWidget;
+	GdkColor color;
+	int res;
+	
+
+	
+	dialog = gtk_color_selection_dialog_new( "Select Background Color" );
+	colorSelWidget = gtk_color_selection_dialog_get_color_selection( GTK_COLOR_SELECTION_DIALOG(dialog) );
+	gtk_color_selection_set_has_opacity_control( GTK_COLOR_SELECTION(colorSelWidget), FALSE );	
+	
+	gtk_gl_widget_get_background_color( glWidget, &color );
+	gtk_color_selection_set_previous_color( GTK_COLOR_SELECTION(colorSelWidget), &color );
+	
+	res = gtk_dialog_run (GTK_DIALOG (dialog));
+	if ( res == GTK_RESPONSE_OK )
+	{
+		gtk_color_selection_get_current_color( GTK_COLOR_SELECTION(colorSelWidget), &color );
+		gtk_gl_widget_set_background_color( glWidget, color );
+	}
+	
+	gtk_widget_destroy( dialog );
 }
 
 void recenter( GtkWidget *widget, GtkGlWidget *glWidget )
@@ -164,7 +206,6 @@ void recenter( GtkWidget *widget, GtkGlWidget *glWidget )
 	
 	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
 	gtk_gl_widget_center_model( glWidget, b );
-	gtk_gl_widget_actualize( glWidget );
 }
 
 void lines( GtkWidget *widget, GtkGlWidget *glWidget )
@@ -173,7 +214,6 @@ void lines( GtkWidget *widget, GtkGlWidget *glWidget )
 	
 	mode = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
 	gtk_gl_widget_set_wired_mode( glWidget, mode );
-	gtk_gl_widget_actualize(glWidget);
 }
 
 void centroid( GtkWidget *widget, GtkGlWidget *glWidget )
@@ -182,7 +222,6 @@ void centroid( GtkWidget *widget, GtkGlWidget *glWidget )
 	
 	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
 	gtk_gl_widget_show_centroid( glWidget, b );
-	gtk_gl_widget_actualize( glWidget );
 }
 
 void toggle_light( GtkWidget *widget, GtkGlWidget *glWidget )
@@ -191,7 +230,6 @@ void toggle_light( GtkWidget *widget, GtkGlWidget *glWidget )
 	
 	b = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(widget) );
 	gtk_gl_widget_enable_lighting( glWidget, b );
-	gtk_gl_widget_actualize( glWidget );
 }
 
 
@@ -199,15 +237,19 @@ void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 {
 	GObject *widget;
 	GtkWidget *glWidget;
+	GtkWidget *windowMain;
 
 	
-	widget = gtk_builder_get_object ( builder, "window_main" );
-	g_signal_connect( widget, "destroy", G_CALLBACK (gtk_main_quit), NULL );
+	windowMain = gtk_builder_get_object ( builder, "window_main" );
+	g_signal_connect( windowMain, "destroy", G_CALLBACK (gtk_main_quit), NULL );
 	
 	widget = gtk_builder_get_object ( builder, "vbox1" );
 	glWidget = gtk_gl_widget_new( glConfig );
 	gtk_box_pack_start( GTK_BOX(widget), glWidget, TRUE, TRUE, 0 );
 	gtk_box_reorder_child( GTK_BOX(widget), glWidget, 1 );
+	
+	widget = gtk_builder_get_object ( builder, "about" );
+	g_signal_connect( widget, "activate", G_CALLBACK (about), windowMain );
 	
 	widget = gtk_builder_get_object ( builder, "bb" );
 	g_signal_connect( widget, "toggled", G_CALLBACK (view_bounding_box), glWidget );
@@ -224,9 +266,6 @@ void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 	widget = gtk_builder_get_object ( builder, "screenshot" );
 	g_signal_connect( widget, "activate", G_CALLBACK (screenshot), glWidget );
 	
-	widget = gtk_builder_get_object ( builder, "about" );
-	g_signal_connect( widget, "activate", G_CALLBACK (about), NULL );
-	
 	widget = gtk_builder_get_object ( builder, "recenter" );
 	g_signal_connect( widget, "toggled", G_CALLBACK (recenter), glWidget );
 	
@@ -236,6 +275,9 @@ void connect_signals( GtkBuilder *builder, GdkGLConfig *glConfig )
 	
 	widget = gtk_builder_get_object ( builder, "lines" );
 	g_signal_connect( widget, "toggled", G_CALLBACK (lines), glWidget );
+	
+	widget = gtk_builder_get_object ( builder, "bg-color" );
+	g_signal_connect( widget, "activate", G_CALLBACK (background_color), glWidget );
 	
 	widget = gtk_builder_get_object ( builder, "togglelight" );
 	g_signal_connect( widget, "toggled", G_CALLBACK (toggle_light), glWidget );

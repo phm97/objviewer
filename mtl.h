@@ -17,37 +17,30 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT
 OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "types.h"
+#ifndef MTL_H_INCLUDED
+#define MTL_H_INCLUDED
 
-#ifndef DEF_UTILS
-#define DEF_UTILS
+typedef struct Material Material;
+struct Material
+{
+	Material *next;
+	
+	char name[512];
+    float ambiant[4];
+    float diffuse[4];
+    float specular[4];
+	float shininess;
+	
+	GLuint texture;
+};
 
-//x red ; y green ; z blue;
-void draw_origin();
 
-//draws bounding box with lines
-void draw_bounding_box( vec3d box[2] );
-
-//Calculates the center of the bounding box 
-void bounding_box_centroid( vec3d box[2], vec3d *centroid );
-
-//Loads a texture with GdkPixbuf
-unsigned int load_texture( const char *nom );
-
-//reads the pixels of the drawing area and store them in a .bmp file
-int take_screenshot( const char *filename );
-
-/*an equivalent of fgets, but that deals with CRLF character.
-  Returns the last character ridden. If the end of file is reach, it returns EOF */
-int f_read_line( FILE *stream, int n, char *p );
-
-//go to the next line and return the last character ridden. If end of file, it returns EOF
-int f_skip_line( FILE *stream );
-
-//Operations on vectors
-void vec3d_cross_product( vec3d *v1, vec3d *v2, vec3d *out );
-void vec3d_normalize( vec3d *v );
-void vec3d_sub( vec3d *v1, vec3d *v2, vec3d *out );
-void vec3d_copy( vec3d *v1, vec3d *v2 );
+Material* mtl_new( Material **materialList, char *name );
+void mtl_delete_all( Material *mtl1 );
+int mtl_get_list_size( Material* materialList );
+int mtl_load_from_file( Material** materialList, const char *filename );
+void mtl_print_names( Material* materialList );
+void mtl_use( Material* mtl );
+Material* mtl_find_with_name( Material* materialList, char *name );
 
 #endif
