@@ -19,8 +19,6 @@ Here are the instructions not supported
 Some instructions are just ingnored :
 - o
 - g
-- mtllib
-- usemtl
 
 And here are the supported features :
 - triangular faces
@@ -29,7 +27,6 @@ And here are the supported features :
 - faces defined with relative indices
 
 Note that textured parts and non-textured parts can not cohabit in the same file. The obj files loaded must be fully textured or fully untextured, or else, it will result in a crash.
-objviewer does not support Mtl files yet. This may come in the future.
 
 Texture files are loaded with GdkPixbuf. The supported file formats are the following :
 - bmp
