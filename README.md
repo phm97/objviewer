@@ -3,7 +3,7 @@ Obj Viewer is a basic Wavefront object file loader made with GTK+2.0, GtkGLExt a
 
 
 ## Features
-Obj viewer works fine with a lot of obj files. However, some files contain instructions not supported by this loader. Loading such files may result in a crash of the application.
+Obj viewer works fine with a lot of obj files. However, some files contain instructions not supported by this loader. Loading such files may (or may not) result in a crash of the application.
 Here are the instructions not supported
 - vp
 - l
@@ -21,10 +21,10 @@ Some instructions are just ingnored :
 - g
 
 And here are the supported features :
-- triangular faces
-- square faces
+- triangular faces, square faces, and polygonal faces
 - faces defined with absolute indices
 - faces defined with relative indices
+- smoothing groups
 
 Note that textured parts and non-textured parts can not cohabit in the same file. The obj files loaded must be fully textured or fully untextured, or else, it will result in a crash.
 
