@@ -29,8 +29,10 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 
 Material* mtl_new( Material **materialList, char *name )
 {
-	Material *mtl = (Material*) malloc( sizeof(Material) );
-	
+	Material *mtl;
+
+	mtl = (Material*) malloc( sizeof(Material) );
+	if( mtl == NULL ) return NULL;
 	
 	strcpy( mtl->name, name );
 	mtl->ambiant[0] = 0.2f; mtl->ambiant[1] = 0.2f; mtl->ambiant[2] = 0.2f; mtl->ambiant[3] = 1.0f;
@@ -71,14 +73,19 @@ int mtl_load_from_file( Material **materialList, const char *filename )
 		{
 		
 			
-			case 'n' : fscanf( file, "ewmtl %s", buf );
-						currentMaterial = mtl_new( materialList, buf );
+			case 'n' : fgets( buf, 6, file );
+						if( strcmp( buf, "ewmtl" ) == 0 )
+						{
+							fscanf( file, " %s", buf );
+							currentMaterial = mtl_new( materialList, buf );
+						}
+						else character = f_skip_line(file);
 			break;
 			case 'K' : character = fgetc( file );
 						if( character == 'a' ) fscanf( file, " %f %f %f", &currentMaterial->ambiant[0], &currentMaterial->ambiant[1], &currentMaterial->ambiant[2] );
 						else if( character == 'd' ) fscanf( file, " %f %f %f", &currentMaterial->diffuse[0], &currentMaterial->diffuse[1], &currentMaterial->diffuse[2] );
 						else if( character == 's' ) fscanf( file, " %f %f %f", &currentMaterial->specular[0], &currentMaterial->specular[1], &currentMaterial->specular[2] );
-						//else if( character == 'e' ) emissive light, not implemented yet
+						else if( character == 'e' ) character = f_skip_line( file ); //emissive light, not implemented yet
 			break;
 			case 'N' : character = fgetc( file );
 						if( character == 's' ) 
@@ -99,8 +106,9 @@ int mtl_load_from_file( Material **materialList, const char *filename )
 							currentMaterial->texture = load_texture( textureFileName );
 							g_free( textureFileName );
 						}
-						else fseek( file, -6, SEEK_CUR );
+						else character = f_skip_line( file );
 			break;
+			case 'T' : //ignore Tf and Tr, not implemented
 			case 'i' :
 			case '#' : character = f_skip_line( file );
 			break;
@@ -151,6 +159,7 @@ void mtl_use( Material* mtl )
 		glEnable( GL_TEXTURE_2D );
 		glBindTexture( GL_TEXTURE_2D, mtl->texture );
 	}
+	//else glDisable( GL_TEXTURE_2D );
 }
 
 void mtl_delete_all( Material *mtl1 )

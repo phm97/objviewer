@@ -28,12 +28,11 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 typedef struct face face;
 struct face
 {
-    unsigned int v1, vt1, vn1;
-    unsigned int v2, vt2, vn2;
-    unsigned int v3, vt3, vn3;
-	unsigned int v4, vt4, vn4;
-	int smooth;
-	int type;
+    unsigned int *v;
+	unsigned int *vt;
+	unsigned int *vn;
+	unsigned short smooth;		//smoothing group
+	unsigned short type;		//the number of vertices
 	Material *mtl;
 };
 
@@ -45,13 +44,13 @@ struct ObjModel
 	Material *materialList;
 	
     int numVertices;
-    vec3d *vertices;
+    vec3f *vertices;
 
     int numTexCoor;
-    vec2d *texCoor;
+    vec2f *texCoor;
 
     int numNorms;
-    vec3d *normals;
+    vec3f *normals;
 
     int numFaces;
     face *faces;
@@ -66,10 +65,10 @@ void obj_draw_wired( ObjModel *model );
 void obj_delete( ObjModel* model );
 void obj_scale( ObjModel *model, float s );
 void obj_translate( ObjModel *model, float x, float y, float z );
-void obj_get_centroid( ObjModel *model, vec3d *centroid );
+void obj_get_centroid( ObjModel *model, vec3f *centroid );
 void obj_recenter( ObjModel *model );
 void obj_replace( ObjModel *model );
 void obj_resize( ObjModel *model );
-void obj_get_bounding_box( ObjModel *model, vec3d box[2] );
+void obj_get_bounding_box( ObjModel *model, vec3f box[2] );
 
 #endif // LOBJ_H_INCLUDED

@@ -34,14 +34,17 @@ void draw_origin()
 	
 	glBegin( GL_LINES );
 	
+	//X axis red
 	glColor3ub( 255, 0, 0 );
 	glVertex3f( 0.0, 0.0, 0.0 );
 	glVertex3f( 1.0, 0.0, 0.0 );
 	
+	//Y axis green
 	glColor3ub( 0, 255, 0 );
 	glVertex3f( 0.0, 0.0, 0.0 );
 	glVertex3f( 0.0, 1.0, 0.0 );
 	
+	//Z axis blue
 	glColor3ub( 0, 0, 255 );
 	glVertex3f( 0.0, 0.0, 0.0 );
 	glVertex3f( 0.0, 0.0, 1.0 );
@@ -50,43 +53,43 @@ void draw_origin()
 }
 
 
-void draw_bounding_box( vec3d box[2] )
+void draw_bounding_box( vec3f box[2] )
 {
 	glDisable( GL_TEXTURE_2D );
 	glDisable( GL_LIGHTING );
 	
 	glBegin( GL_LINE_LOOP );
-	glVertex3d( box[0].x, box[0].y, box[0].z );
-	glVertex3d( box[1].x, box[0].y, box[0].z );
-	glVertex3d( box[1].x, box[1].y, box[0].z );
-	glVertex3d( box[0].x, box[1].y, box[0].z );
+	glVertex3f( box[0].x, box[0].y, box[0].z );
+	glVertex3f( box[1].x, box[0].y, box[0].z );
+	glVertex3f( box[1].x, box[1].y, box[0].z );
+	glVertex3f( box[0].x, box[1].y, box[0].z );
 	glEnd();
 	
 	glBegin( GL_LINE_LOOP );
-	glVertex3d( box[0].x, box[0].y, box[1].z );
-	glVertex3d( box[1].x, box[0].y, box[1].z );
-	glVertex3d( box[1].x, box[1].y, box[1].z );
-	glVertex3d( box[0].x, box[1].y, box[1].z );
+	glVertex3f( box[0].x, box[0].y, box[1].z );
+	glVertex3f( box[1].x, box[0].y, box[1].z );
+	glVertex3f( box[1].x, box[1].y, box[1].z );
+	glVertex3f( box[0].x, box[1].y, box[1].z );
 	glEnd();
 	
 	glBegin( GL_LINES );
-	glVertex3d( box[0].x, box[0].y, box[0].z );
-	glVertex3d( box[0].x, box[0].y, box[1].z );
-	glVertex3d( box[1].x, box[0].y, box[0].z );
-	glVertex3d( box[1].x, box[0].y, box[1].z );
-	glVertex3d( box[1].x, box[1].y, box[0].z );
-	glVertex3d( box[1].x, box[1].y, box[1].z );
-	glVertex3d( box[0].x, box[1].y, box[0].z );
-	glVertex3d( box[0].x, box[1].y, box[1].z );
+	glVertex3f( box[0].x, box[0].y, box[0].z );
+	glVertex3f( box[0].x, box[0].y, box[1].z );
+	glVertex3f( box[1].x, box[0].y, box[0].z );
+	glVertex3f( box[1].x, box[0].y, box[1].z );
+	glVertex3f( box[1].x, box[1].y, box[0].z );
+	glVertex3f( box[1].x, box[1].y, box[1].z );
+	glVertex3f( box[0].x, box[1].y, box[0].z );
+	glVertex3f( box[0].x, box[1].y, box[1].z );
 	glEnd();
 }
 
 
-void bounding_box_centroid( vec3d box[2], vec3d *centroid )
+void bounding_box_centroid( vec3f box[2], vec3f *centroid )
 {
-	centroid->x = ( box[0].x + box[1].x ) / 2;
-	centroid->y = ( box[0].y + box[1].y ) / 2;
-	centroid->z = ( box[0].z + box[1].z ) / 2;
+	centroid->x = ( box[0].x + box[1].x ) / 2.0;
+	centroid->y = ( box[0].y + box[1].y ) / 2.0;
+	centroid->z = ( box[0].z + box[1].z ) / 2.0;
 }
 
 GLuint load_texture( const char *name )
@@ -102,7 +105,7 @@ GLuint load_texture( const char *name )
 	GLuint texture = 0;
 	
 	
-	pixbuf1 = gdk_pixbuf_new_from_file( name, &error ); //this generate a GLib warning. I don't know why...
+	pixbuf1 = gdk_pixbuf_new_from_file( name, &error ); //Apparently, this sometimes generates a warning of GLib at runtime. I don't know why...
 	if( !pixbuf1 )
 	{
 		g_printerr ("Error loading file: %s\n\n", error->message);
@@ -192,7 +195,7 @@ int f_read_line( FILE *stream, int n, char *p )
 	int i;
 	int c;
 	
-	for( i=0; i<n; i++ )
+	for( i=0; i<(n-1); i++ )
 	{
 		c = fgetc(stream);
 		if( c == EOF ) break;         //End of File
@@ -221,14 +224,42 @@ int f_skip_line( FILE *stream )
 	return c;
 }
 
-void vec3d_cross_product( vec3d *v1, vec3d *v2, vec3d *out )
+unsigned short f_line_count_strings( FILE *stream )
+{
+	char line[1024];
+	char *p;
+	long pos;
+	unsigned short n=0;
+	
+	pos = ftell( stream );
+	f_read_line( stream, 1024, line );	
+	fseek( stream, pos, SEEK_SET);
+	
+	
+	if( line[0] != ' ' ) n++;
+	for( p = &line[1]; *p != '\0'; p++ )
+	{
+		if( *p == ' ' ) continue;
+		else if( *(p-1) == ' ' ) n++;
+	}
+	
+	return n;
+}
+
+short vec3f_cmp( vec3f v1, vec3f v2 )
+{
+	if( v1.x == v2.x && v1.y == v2.y && v1.z == v2.z ) return 0;
+	else return 1;
+}
+
+void vec3f_cross_product( vec3f *v1, vec3f *v2, vec3f *out )
 {
 	out->x = ( v1->y * v2->z ) - ( v1->z * v2->y );
 	out->y = ( v1->z * v2->x ) - ( v1->x * v2->z );
 	out->z = ( v1->x * v2->y ) - ( v1->y * v2->x );
 }
 
-void vec3d_normalize( vec3d *v )
+void vec3f_normalize( vec3f *v )
 {
 	float a, b;
 	
@@ -242,16 +273,37 @@ void vec3d_normalize( vec3d *v )
 	v->z /= b;
 }
 
-void vec3d_sub( vec3d *v1, vec3d *v2, vec3d *out )
+void vec3f_sub( vec3f *v1, vec3f *v2, vec3f *out )
 {
 	out->x = v1->x - v2->x;
 	out->y = v1->y - v2->y;
 	out->z = v1->z - v2->z;
 }
 
-void vec3d_copy( vec3d *v1, vec3d *v2 )
+void vec3f_add( vec3f *v1, vec3f *v2, vec3f *out )
 {
-	v2->x = v1->x;
-	v2->y = v1->y;
-	v2->z = v1->z;
+	out->x = v1->x + v2->x;
+	out->y = v1->y + v2->y;
+	out->z = v1->z + v2->z;
+}
+
+void vec3f_scale( vec3f *v, float s, vec3f *out )
+{
+	out->x = v->x * s;
+	out->y = v->y * s;
+	out->z = v->z * s;
+}
+
+void vec3f_copy( vec3f *src, vec3f *dest )
+{
+	dest->x = src->x;
+	dest->y = src->y;
+	dest->z = src->z;
+}
+
+void vec3f_zero( vec3f *v )
+{
+	v->x = 0.0;
+	v->y = 0.0;
+	v->z = 0.0;
 }

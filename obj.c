@@ -36,7 +36,9 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 #endif
 
 
-static void obj_calculate_normals_flat( ObjModel *model );
+static void obj_give_normals_flat( ObjModel *model );
+static void obj_give_normals_smooth( ObjModel *model );
+void obj_smooth_groups( ObjModel *model );
 
 //--------------------------------------------------------------------------
 //fonctions for loading obj 3D models
@@ -122,6 +124,7 @@ static void obj_first_read( ObjModel *model, FILE *file )
             case 'v' : character = fgetc( file );
                        if( character == 'n' ) model->numNorms++;
                        else if( character == 't' ) model->numTexCoor++;
+					   else if( character == 'p' ) character = f_skip_line(file); //vertex parameter. not implemented
                        else model->numVertices++;
             break;
             case 'f' : model->numFaces++;
@@ -148,9 +151,9 @@ static void obj_first_read( ObjModel *model, FILE *file )
     g_print("-> %d groups\n", model->numGroups );
 	
 	
-	model->vertices = (vec3d*) malloc( model->numVertices * sizeof( vec3d ) );
-    model->texCoor = (vec2d*) malloc( model->numTexCoor * sizeof( vec2d ) );
-    model->normals = (vec3d*) malloc( model->numNorms * sizeof( vec3d) );
+	model->vertices = (vec3f*) malloc( model->numVertices * sizeof( vec3f ) );
+    model->texCoor = (vec2f*) malloc( model->numTexCoor * sizeof( vec2f ) );
+    model->normals = (vec3f*) malloc( model->numNorms * sizeof( vec3f) );
 	model->faces = (face*) malloc( model->numFaces * sizeof( face ) );
 	
 	for( i=0; i < model->numVertices ; i++ ) { model->vertices[i].x = 0.0; model->vertices[i].y = 0.0; model->vertices[i].z = 0.0; }
@@ -158,8 +161,8 @@ static void obj_first_read( ObjModel *model, FILE *file )
 	for( i=0; i < model->numNorms; i++ ) { model->normals[i].x = 0.0; model->normals[i].y = 0.0; model->normals[i].z = 0.0; }
 	
 	
-	size = sizeof(ObjModel) + (model->numVertices * sizeof( vec3d )) + (model->numTexCoor * sizeof( vec2d ))
-			+ (model->numNorms * sizeof( vec3d)) + (model->numFaces * sizeof( face ));
+	size = sizeof(ObjModel) + (model->numVertices * sizeof( vec3f )) + (model->numTexCoor * sizeof( vec2f ))
+			+ (model->numNorms * sizeof( vec3f)) + (model->numFaces * sizeof( face ));
 	g_print("%d bytes allocated\n", size);
 	
 }
@@ -174,19 +177,15 @@ static void obj_parse( ObjModel *model, FILE *file )
     int v=0; //current vertex
     int t=0; //current texCoord
     int currentFace = 0; 
-	int s = 1; //smooth is on by default
+	short s = 1; //smooth is on by default
 	char buf[128];
     int character = 0;
 	Material *currentMaterial = NULL;
 	
-	/* a b c d : vertices indices in the file (absolute or relative)
-	   e f g h : texCoords indices in the file (absolute or relative)
-	   i j k l : normals indices in the file (absolute or relative)
-	   These variables are used to parse faces. A square face in the file is defined that way :
-	   f  a/e/i  b/f/j  c/g/k  d/h/l
-	*/
-	int a, b, c, d, e, f, g, h, i, j, k, l;
-	a = b = c = d = e = f = g = h = i = j = k = l = 0;
+	/* a b c : These variables are used to parse faces. A square face in the file is defined that way :
+	   f  a/b/c  a/b/c  a/b/c  a/b/c */
+	int a, b, c;
+	int i;
 
     rewind( file );
 
@@ -201,81 +200,108 @@ static void obj_parse( ObjModel *model, FILE *file )
             case 'v': 	character = fgetc( file );
 						if( character == 'n' ) //normal
 						{
-							fscanf( file, " %lf %lf %lf", &model->normals[n].x, &model->normals[n].y, &model->normals[n].z );
+							fscanf( file, " %f %f %f", &model->normals[n].x, &model->normals[n].y, &model->normals[n].z );
 							n++;
 						}
 						else if( character == 't' ) //TexCoor
 						{
-							fscanf( file, " %lf %lf", &model->texCoor[t].x, &model->texCoor[t].y );
+							fscanf( file, " %f %f", &model->texCoor[t].x, &model->texCoor[t].y );
 							t++;
 						}
 						else //vertex
 						{
-							fscanf( file, "%lf %lf %lf", &model->vertices[v].x, &model->vertices[v].y, &model->vertices[v].z );
+							fscanf( file, "%f %f %f", &model->vertices[v].x, &model->vertices[v].y, &model->vertices[v].z );
 							v++;
 						}
             break;
 
 			case 's' : 	fscanf( file, " %s", buf ); //smoothing group
 						if( strcmp( buf, "off" ) == 0 ) s = 0;
-						else s = (int) atol( buf );
+						else s = (short) atol( buf );
 			break;	
 			
 			case 'u' : fscanf( file, "semtl %s", buf );
 						currentMaterial = mtl_find_with_name( model->materialList, buf );
 			break;
 			
-			case 'o' :  //not supported yet
+			case 'o' :
 			case 'g' : 	//groups are not implemented yet
 			case 'm' :	//mtllib
             case '#' :  character = f_skip_line( file );  
             break;
-            case 'f' :  //we must remember this shema :   f  a/e/i  b/f/j  c/g/k  d/h/l
+            case 'f' :  model->faces[currentFace].type = f_line_count_strings( file );
+			
+						//we must remember this shema :   f  a/b/c a/b/c a/b/c etc...
 						if( model->numNorms == 0 && model->numTexCoor == 0 ) //only vertices
-							fscanf( file, " %d %d %d", &a, &b, &c );
+						{
+							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) ); 
+							for( i=0; i<model->faces[currentFace].type; i++ )
+							{
+								fscanf( file, " %d", &a );
+								if( a < 0 ) model->faces[currentFace].v[i] = v + a;		//relatice indices
+								else model->faces[currentFace].v[i] =a - 1;			//absolute indices
+							}
+						}
 						else if( model->numTexCoor == 0 ) //only vertices and normals
-							fscanf( file, " %d//%d %d//%d %d//%d", &a, &i, &b, &j, &c, &k );
+						{
+							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+							model->faces[currentFace].vn = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+							for( i=0; i<model->faces[currentFace].type; i++ )
+							{
+								fscanf( file, " %d//%d", &a, &c );
+								if( a < 0 )  //relative indices
+								{
+									model->faces[currentFace].v[i] = v + a;
+									model->faces[currentFace].vn[i] = n + c;
+								}
+								else //absolute indices
+								{
+									model->faces[currentFace].v[i] = a - 1;
+									model->faces[currentFace].vn[i] = c - 1;
+								}
+							}
+						}
 						else if( model->numNorms == 0 ) //only vertices and texture coordinates
-							fscanf( file, " %d/%d %d/%d %d/%d", &a, &e, &b, &f, &c, &g );
+						{
+							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+							model->faces[currentFace].vt = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+							for( i=0; i<model->faces[currentFace].type; i++ )
+							{
+								fscanf( file, " %d/%d", &a, &b );
+								if( a < 0 )
+								{
+									model->faces[currentFace].v[i] = v + a;
+									model->faces[currentFace].vt[i] = t + b;
+								}
+								else
+								{
+									model->faces[currentFace].v[i] = a - 1;
+									model->faces[currentFace].vt[i] = b - 1;
+								}
+							}
+						}
 						else //vertices texture coordinates and normals
-							fscanf( file, " %d/%d/%d %d/%d/%d %d/%d/%d", &a, &e, &i, &b, &f, &j, &c, &g, &k );
-						
-						//check wether the face is squared
-						character = fgetc(file);
-						character = fgetc(file);
-						if( isdigit(character) != 0 || character == '-' ) //square face : we must read the last "d/h/l"
 						{
-							fseek( file, -1, SEEK_CUR );
-							model->faces[currentFace].type = 4;
-							
-							if( model->numNorms == 0 && model->numTexCoor == 0 ) 	fscanf( file, " %d", &d );
-							else if( model->numTexCoor == 0 ) 						fscanf( file, " %d//%d", &d, &l );
-							else if( model->numNorms == 0 ) 						fscanf( file, " %d/%d", &d, &h ); 
-							else 													fscanf( file, " %d/%d/%d", &d, &h, &l );
+							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+							model->faces[currentFace].vt = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+							model->faces[currentFace].vn = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+							for( i=0; i<model->faces[currentFace].type; i++ )
+							{
+								fscanf( file, " %d/%d/%d", &a, &b, &c );
+								if( a < 0 )
+								{
+									model->faces[currentFace].v[i] = v + a;
+									model->faces[currentFace].vt[i] = t + b;
+									model->faces[currentFace].vn[i] = n + c;
+								}
+								else
+								{
+									model->faces[currentFace].v[i] = a - 1;
+									model->faces[currentFace].vt[i] = b - 1;
+									model->faces[currentFace].vn[i] = c - 1;
+								}
+							}
 						}
-						else //triangular face
-						{
-							fseek( file, -2, SEEK_CUR );
-							model->faces[currentFace].type = 3;
-						}
-						
-						
-						//copies the indices a, b, c, d, e, f, etc... into the faces of our model struct
-						if( a < 0 ) //relative indices
-						{
-							model->faces[currentFace].v1 = v + a; model->faces[currentFace].vt1 = t + e; model->faces[currentFace].vn1 = n + i;
-							model->faces[currentFace].v2 = v + b; model->faces[currentFace].vt2 = t + f; model->faces[currentFace].vn2 = n + j;
-							model->faces[currentFace].v3 = v + c; model->faces[currentFace].vt3 = t + g; model->faces[currentFace].vn3 = n + k;
-							model->faces[currentFace].v4 = v + d; model->faces[currentFace].vt4 = t + h; model->faces[currentFace].vn4 = n + l;
-						}
-						else //absolute indices
-						{
-							model->faces[currentFace].v1 = a - 1; model->faces[currentFace].vt1 = e - 1; model->faces[currentFace].vn1 = i - 1;
-							model->faces[currentFace].v2 = b - 1; model->faces[currentFace].vt2 = f - 1; model->faces[currentFace].vn2 = j - 1;
-							model->faces[currentFace].v3 = c - 1; model->faces[currentFace].vt3 = g - 1; model->faces[currentFace].vn3 = k - 1;
-							model->faces[currentFace].v4 = d - 1; model->faces[currentFace].vt4 = h - 1; model->faces[currentFace].vn4 = l - 1;
-						}
-						
 						
 						model->faces[currentFace].smooth = s;
 						model->faces[currentFace].mtl = currentMaterial;
@@ -294,6 +320,21 @@ ObjModel* obj_load_from_file( const char* name )
     ObjModel* model = NULL;
     FILE *file = NULL;
 	char *locale, *savedLocale;
+	int i;
+	
+	
+	/* Check extension. You can enable it wether you want
+	int l;
+	char *extension;
+	
+	l = strlen( name );
+	extension = name + l - 4;
+	if( strcmp(extension, ".obj") )
+	{
+		g_print("Error : the filename specified does not contain the .obj extension\n\n");
+		return NULL;
+	}
+	*/
 	
 	
 	//we must comme back to C standard locale to make sure fscanf work correctly with float numbers
@@ -322,7 +363,28 @@ ObjModel* obj_load_from_file( const char* name )
 	setlocale( LC_ALL, savedLocale );
 	free( savedLocale );
 	
-	if( model->numNorms == 0 ) obj_calculate_normals_flat( model );
+	
+	if( model->numNorms == 0 ) 
+	{
+		if( model->numVertices > 30000 ) obj_give_normals_flat( model );
+		else
+		{
+			char hasSmoothingGroups = 0;
+			
+			for( i=0; i < model->numFaces; i++ )
+			{
+				if( model->faces[i].smooth > 1 )
+				{
+					hasSmoothingGroups = 1;
+					break;
+				}
+			}
+
+			if( hasSmoothingGroups ) obj_smooth_groups( model );
+			else obj_give_normals_smooth( model );
+		}
+	}
+	
 
 	g_print("done\n\n");
 		
@@ -333,6 +395,8 @@ ObjModel* obj_load_from_file( const char* name )
 
 static void obj_draw_face_vn( ObjModel *model, int f )
 {
+	int i;
+	
 	if( model->faces[f].smooth ) glShadeModel( GL_SMOOTH );
 	else glShadeModel( GL_FLAT );
 	
@@ -342,31 +406,39 @@ static void obj_draw_face_vn( ObjModel *model, int f )
 	{
 		case 3 : 	glBegin( GL_TRIANGLES );
 
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 
 					glEnd();
 		break;
 		case 4 : 	glBegin( GL_QUADS );
 
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 					
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn4] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v4] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[3]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[3]] );
 
+					glEnd();
+		break;
+		default :  glBegin( GL_POLYGON );
+					for( i=0; i<model->faces[f].type; i++ )
+					{
+						glNormal3fv( (float*)&model->normals[model->faces[f].vn[i]] );
+						glVertex3fv( (float*)&model->vertices[model->faces[f].v[i]] );
+					}
 					glEnd();
 		break;
 	}
@@ -374,6 +446,8 @@ static void obj_draw_face_vn( ObjModel *model, int f )
 
 static void obj_draw_face_vt( ObjModel *model, int f )
 {
+	int i;
+	
 	if( model->faces[f].smooth ) glShadeModel( GL_SMOOTH );
 	else glShadeModel( GL_FLAT );
 	
@@ -383,38 +457,48 @@ static void obj_draw_face_vt( ObjModel *model, int f )
 	{
 		case 3 : 	glBegin( GL_TRIANGLES );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 
 					glEnd();
 		break;
 		case 4 : 	glBegin( GL_QUADS );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 					
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt4] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v4] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[3]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[3]] );
 
 					glEnd();
 		break;
+		default : glBegin( GL_POLYGON );
+					for( i=0; i<model->faces[f].type; i++ )
+					{
+						glNormal3fv( (float*)&model->normals[model->faces[f].vt[i]] );
+						glVertex3fv( (float*)&model->vertices[model->faces[f].v[i]] );
+					}
+					glEnd();
 	}
 }
 
+
 static void obj_draw_face_vn_vt( ObjModel *model, int f )
 {
+	int i;
+	
 	if( model->faces[f].smooth ) glShadeModel( GL_SMOOTH );
 	else glShadeModel( GL_FLAT );
 	
@@ -424,38 +508,47 @@ static void obj_draw_face_vn_vt( ObjModel *model, int f )
 	{
 		case 3 : 	glBegin( GL_TRIANGLES );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt1] );
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[0]] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt2] );
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[1]] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt3] );
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[2]] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 
 					glEnd();
 		break;
 		case 4 : 	glBegin( GL_QUADS );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt1] );
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[0]] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt2] );
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[1]] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt3] );
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[2]] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 					
-					glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt4] );
-					glNormal3dv( (double*)&model->normals[model->faces[f].vn4] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v4] );
+					glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[3]] );
+					glNormal3fv( (float*)&model->normals[model->faces[f].vn[3]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[3]] );
 
+					glEnd();
+		break;
+		default :  glBegin( GL_POLYGON );
+					for( i=0; i<model->faces[f].type; i++ )
+					{
+						glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[i]] );
+						glNormal3fv( (float*)&model->normals[model->faces[f].vn[i]] );
+						glVertex3fv( (float*)&model->vertices[model->faces[f].v[i]] );
+					}
 					glEnd();
 		break;
 	}
@@ -464,6 +557,8 @@ static void obj_draw_face_vn_vt( ObjModel *model, int f )
 
 static void obj_draw_face( ObjModel *model, int f )
 {
+	int i;
+	
 	if( model->faces[f].smooth ) glShadeModel( GL_SMOOTH );
 	else glShadeModel( GL_FLAT );
 	
@@ -472,16 +567,21 @@ static void obj_draw_face( ObjModel *model, int f )
 	switch( model->faces[f].type )
 	{
 		case 3 : 	glBegin( GL_TRIANGLES );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 					glEnd();
 		break;
 		case 4 : 	glBegin( GL_QUADS );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v4] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[3]] );
+					glEnd();
+		break;
+		default :  glBegin( GL_POLYGON );
+					for( i=0; i<model->faces[f].type; i++ )
+						glVertex3fv( (float*)&model->vertices[model->faces[f].v[i]] );
 					glEnd();
 		break;
 	}
@@ -492,19 +592,19 @@ void obj_draw( ObjModel *model )
 {
     int i;
 	
-	if( (model->numNorms == 0) && (model->numTexCoor == 0) )
+	if( (model->numNorms == 0) && (model->numTexCoor == 0) ) //only vertices
 	{
 		for( i=0; i < model->numFaces; i++ ) obj_draw_face( model, i );
 	}
-	else if( model->numTexCoor == 0 ) //only normals
+	else if( model->numTexCoor == 0 ) //only normals and vertices
 	{
 		for( i=0; i< model->numFaces; i++ ) obj_draw_face_vn( model, i );
 	}
-	else if( model->numNorms == 0 ) //only texCoor
+	else if( model->numNorms == 0 ) //only texture coordinates and vertices
 	{
 		for( i=0; i< model->numFaces; i++ ) obj_draw_face_vt( model, i );
 	}
-    else
+    else //texture coordinates, normals and vertices
 	{
 		for( i=0; i < model->numFaces; i++ ) obj_draw_face_vn_vt( model, i );
 	}
@@ -512,7 +612,7 @@ void obj_draw( ObjModel *model )
 
 void obj_draw_wired( ObjModel *model )
 {
-	int f;
+	int f, i;
 	
 	for( f=0; f < model->numFaces; f++ )
 	{
@@ -525,39 +625,48 @@ void obj_draw_wired( ObjModel *model )
 		{
 			case 3 : glBegin( GL_LINE_LOOP );
 
-					if( model->numTexCoor ) glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt1] );
-					if( model->numNorms ) glNormal3dv( (double*)&model->normals[model->faces[f].vn1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[0]] );
+					if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					if( model->numTexCoor ) glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt2] );
-					if( model->numNorms ) glNormal3dv( (double*)&model->normals[model->faces[f].vn2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[1]] );
+					if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					if( model->numTexCoor ) glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt3] );
-					if( model->numNorms ) glNormal3dv( (double*)&model->normals[model->faces[f].vn3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[2]] );
+					if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 
 					glEnd();
 			break;
 			case 4 : glBegin( GL_LINE_LOOP );
 
-					if( model->numTexCoor ) glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt1] );
-					if( model->numNorms ) glNormal3dv( (double*)&model->normals[model->faces[f].vn1] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v1] );
+					if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[0]] );
+					if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[0]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[0]] );
 
-					if( model->numTexCoor ) glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt2] );
-					if( model->numNorms ) glNormal3dv( (double*)&model->normals[model->faces[f].vn2] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v2] );
+					if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[1]] );
+					if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[1]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[1]] );
 
-					if( model->numTexCoor ) glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt3] );
-					if( model->numNorms ) glNormal3dv( (double*)&model->normals[model->faces[f].vn3] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v3] );
+					if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[2]] );
+					if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[2]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[2]] );
 					
-					if( model->numTexCoor ) glTexCoord2dv( (double*)&model->texCoor[model->faces[f].vt4] );
-					if( model->numNorms ) glNormal3dv( (double*)&model->normals[model->faces[f].vn4] );
-					glVertex3dv( (double*)&model->vertices[model->faces[f].v4] );
+					if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[3]] );
+					if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[3]] );
+					glVertex3fv( (float*)&model->vertices[model->faces[f].v[3]] );
 
 					glEnd();
+			break;
+			default : glBegin( GL_LINE_LOOP );
+						for( i=0; i<model->faces[f].type; i++ )
+						{
+							if( model->numTexCoor ) glTexCoord2fv( (float*)&model->texCoor[model->faces[f].vt[i]] );
+							if( model->numNorms ) glNormal3fv( (float*)&model->normals[model->faces[f].vn[i]] );
+							glVertex3fv( (float*)&model->vertices[model->faces[f].v[i]] );
+						}
+						glEnd();
 			break;
 		}
 	}
@@ -565,29 +674,189 @@ void obj_draw_wired( ObjModel *model )
 
 //------------------------------------------------------------------------------------------------------------
 
-static void obj_calculate_normals_flat( ObjModel *model )
+
+/*This function overwrite the smoothing group of each face.
+  Consequently, once this function has been called, you should not call obj_give_normals_smooth() afterward */
+static void obj_give_normals_flat( ObjModel *model )
 {
-	int i;
-	vec3d v1, v2, norm;
 	
-	g_print("Calculating normals vectors...\n");
+	int i, j;
+	vec3f v1, v2, norm;
 	
-	model->normals = malloc( model->numFaces * sizeof(vec3d) );
+	g_print("Calculating flat normals vectors...\n");
+	
+	model->normals = malloc( model->numFaces * sizeof(vec3f) );
 	if( model->normals ==  NULL ) return;
 	model->numNorms = model->numFaces;
+	for( i=0; i < model->numFaces; i++ )
+		model->faces[i].vn = (unsigned int*) malloc( model->faces[i].type * sizeof( unsigned int ) );
 	
 	for( i=0; i < model->numFaces; i++ )
 	{
-		vec3d_sub( &model->vertices[model->faces[i].v1], &model->vertices[model->faces[i].v2], &v1 );
-		vec3d_sub( &model->vertices[model->faces[i].v2], &model->vertices[model->faces[i].v3], &v2 );
-		vec3d_cross_product( &v1, &v2, &norm );
-		vec3d_normalize( &norm );
-		vec3d_copy( &norm, &model->normals[i] );
+		vec3f_sub( &model->vertices[model->faces[i].v[0]], &model->vertices[model->faces[i].v[1]], &v1 );
+		vec3f_sub( &model->vertices[model->faces[i].v[1]], &model->vertices[model->faces[i].v[2]], &v2 );
+		vec3f_cross_product( &v1, &v2, &norm );
+		vec3f_normalize( &norm );
+		vec3f_copy( &norm, &model->normals[i] );
 		
-		model->faces[i].vn1 = model->faces[i].vn2 = model->faces[i].vn3 = model->faces[i].vn4 = i;
+		for( j=0; j < model->faces[i].type; j++ ) model->faces[i].vn[j] = i;
 		model->faces[i].smooth = 0;
 	}
 }
+
+
+static void obj_give_normals_smooth( ObjModel *model )
+{
+	int i, j, k;
+	vec3f v1, v2, norm;
+	vec3f *flatNorms;
+	vec3f *smoothNorms;
+	
+	
+	g_print("Calculating flat and smooth normal vectors...\n");
+	
+	
+	//Calculate flat normals and store them in flatNorms array. One face -> one normal
+	flatNorms = malloc( model->numFaces * sizeof(vec3f) );
+	for( i=0; i < model->numFaces; i++ )
+	{
+		vec3f_sub( &model->vertices[model->faces[i].v[0]], &model->vertices[model->faces[i].v[1]], &v1 );
+		vec3f_sub( &model->vertices[model->faces[i].v[1]], &model->vertices[model->faces[i].v[2]], &v2 );
+		vec3f_cross_product( &v1, &v2, &norm );
+		vec3f_normalize( &norm );
+		vec3f_copy( &norm, &flatNorms[i] );
+	}
+	
+
+	/*calculate smooth normals and store them in the smoothNorms array. One vertex -> one normal.
+	  To do so, take each vertex and look for all the faces that it belongs to.
+	  Then take all the corresponding flat normals and calculate the average normal. 
+	  Then add the result to the smooth norm array */
+	smoothNorms = malloc( model->numVertices * sizeof(vec3f) );
+	for( i=0; i < model->numVertices; i++ )
+	{	
+		vec3f_zero( &norm );
+		for( j=0; j < model->numFaces; j++ )
+		{
+			for( k=0; k < model->faces[j].type; k++ )
+			{
+				if( model->faces[j].v[k] == i ) vec3f_add( &norm, &flatNorms[j], &norm );
+			}
+		}
+		vec3f_normalize( &norm );
+		vec3f_copy( &norm, &smoothNorms[i] ); 
+	}
+	
+	
+	//then count the number of normals that we will put in the model
+	for( i=0, k=0; i < model->numFaces; i++ )
+	{
+		if( model->faces[i].smooth ) k += model->faces[i].type;
+		else k++; //one normal per face
+	}
+	
+	
+	//allocate the memory in the model to store the normals
+	model->numNorms = k;
+	model->normals = malloc( k * sizeof(vec3f) );
+	for( i=0; i < model->numFaces; i++ ) model->faces[i].vn = (unsigned int*) malloc( model->faces[i].type * sizeof( unsigned int ) );
+	
+	
+	//then, copy the normals in the model, and attribute each normal to a face
+	for( i=0, k=0; i < model->numFaces; i++ )
+	{
+		if( model->faces[i].smooth )
+		{
+			for( j=0; j < model->faces[i].type; j++ )
+			{
+				vec3f_copy( &smoothNorms[model->faces[i].v[j]], &model->normals[k] );
+				model->faces[i].vn[j] = k;
+				k++;
+			}
+		}
+		else
+		{
+			vec3f_copy( &flatNorms[i], &model->normals[k] );
+			for( j=0; j < model->faces[i].type; j++ ) model->faces[i].vn[j] = k;
+			k++;
+		}
+	}
+	
+	
+	free( smoothNorms );
+	free( flatNorms );
+}
+
+
+void obj_smooth_groups( ObjModel *model )
+{
+
+	int i, j, k, l, m;
+	vec3f v1, v2, norm;
+	vec3f *flatNorms;
+	
+	
+	g_print("Calculating normal vectors using smoothing groups...\n");
+	
+	
+	//First, Calculate normals flat. One face -> one normal
+	flatNorms = malloc( model->numFaces * sizeof(vec3f) );
+	for( i=0; i < model->numFaces; i++ )
+	{
+		vec3f_sub( &model->vertices[model->faces[i].v[0]], &model->vertices[model->faces[i].v[1]], &v1 );
+		vec3f_sub( &model->vertices[model->faces[i].v[1]], &model->vertices[model->faces[i].v[2]], &v2 );
+		vec3f_cross_product( &v1, &v2, &norm );
+		vec3f_normalize( &norm );
+		vec3f_copy( &norm, &flatNorms[i] );
+	}
+	
+	
+	//then count the number of normals that we will put in the model
+	for( i=0, m=0; i < model->numFaces; i++ )
+	{
+		if( model->faces[i].smooth ) m += model->faces[i].type;
+		else m++; //one normal
+	}
+	
+	//allocate the memory in the model to store the normals
+	model->normals = malloc( m * sizeof(vec3f) );
+	model->numNorms = m;
+	for( i=0; i < model->numFaces; i++ ) model->faces[i].vn = (unsigned int*) malloc( model->faces[i].type * sizeof( unsigned int ) );
+	
+	//calculate the normals
+	for( i=0, m=0; i < model->numFaces; i++ )
+	{
+		if( model->faces[i].smooth )
+		{
+			for( j=0; j < model->faces[i].type; j++)
+			{
+				vec3f_zero( &norm);
+				for( k=0; k < model->numFaces; k++ )
+				{
+					if( model->faces[k].smooth != model->faces[i].smooth ) continue;
+					
+					for( l=0; l < model->faces[k].type; l++ )
+						if( model->faces[k].v[l] == model->faces[i].v[j] ) vec3f_add( &norm, &flatNorms[k], &norm );
+				}
+				vec3f_normalize( &norm );
+				vec3f_copy( &norm, &model->normals[m] );
+				model->faces[i].vn[j] = m;
+				m++;
+			}
+		}
+		else
+		{
+			vec3f_copy( &flatNorms[i], &model->normals[m] );
+			for( j=0; j < model->faces[i].type; j++) model->faces[i].vn[j] = m;
+			m++;
+		}
+	}
+	
+	free( flatNorms );
+}
+
+
+
 
 void obj_scale( ObjModel *model, float s )
 {
@@ -614,9 +883,9 @@ void obj_translate( ObjModel *model, float x, float y, float z )
 }
 
 
-void obj_get_centroid( ObjModel *model, vec3d *centroid )
+void obj_get_centroid( ObjModel *model, vec3f *centroid )
 {
-	vec3d v;
+	vec3f v;
 	int i;
 	
 	v.x = v.y = v.z = 0.0;
@@ -640,7 +909,7 @@ void obj_get_centroid( ObjModel *model, vec3d *centroid )
 
 void obj_recenter( ObjModel *model )
 {
-	vec3d v;
+	vec3f v;
 	
 	obj_get_centroid( model, &v );
 	
@@ -653,8 +922,8 @@ void obj_recenter( ObjModel *model )
 
 void obj_replace( ObjModel *model )
 {
-	vec3d box[2];
-	vec3d v;
+	vec3f box[2];
+	vec3f v;
 	
 	obj_get_bounding_box( model, box );
 	
@@ -669,11 +938,11 @@ void obj_replace( ObjModel *model )
 	obj_translate( model, v.x, v.y, v.z );
 }
 
-void obj_get_bounding_box( ObjModel *model, vec3d box[2] )
+void obj_get_bounding_box( ObjModel *model, vec3f box[2] )
 {
 	int i;
-	double xMin, yMin, zMin;
-	double xMax, yMax, zMax;
+	float xMin, yMin, zMin;
+	float xMax, yMax, zMax;
 
 	xMax = xMin = model->vertices[0].x;
 	yMax = yMin = model->vertices[0].y;
@@ -700,20 +969,21 @@ void obj_get_bounding_box( ObjModel *model, vec3d box[2] )
 
 void obj_resize( ObjModel *model )
 {
-	vec3d box[2];
-	vec3d v;
+	vec3f box[2];
+	vec3f v;
 	float scale;
 	
 	obj_get_bounding_box( model, box );
 	
 	//calcul the measurements
-	v.x = box[1].x - box[0].x;
-	v.y = box[1].y - box[0].y;
-	v.z = box[1].z - box[0].z;
+	//v.x = box[1].x - box[0].x;
+	//v.y = box[1].y - box[0].y;
+	//v.z = box[1].z - box[0].z;
+	vec3f_sub( &box[1], &box[0], &v );
 	
 	scale = max( v.x, v.y );
 	scale = max( scale, v.z );
-	scale = 1/scale;
+	scale = 1.0/scale;
 	
 	obj_scale( model, scale );
 }
@@ -722,10 +992,44 @@ void obj_resize( ObjModel *model )
 
 void obj_delete( ObjModel* model )
 {
+	int i;
+	
 	mtl_delete_all( model->materialList );
+	
     free( model->vertices );
     if( model->numTexCoor ) free( model->texCoor );
     if( model->numNorms ) free( model->normals );
+	
+	if( model->numNorms == 0 && model->numTexCoor == 0 ) //only vertices
+	{
+		for( i=0; i < model->numFaces; i++ ) free( model->faces[i].v );
+	}
+	else if( model->numTexCoor == 0 ) //only vertices and normals
+	{
+		for( i=0; i < model->numFaces; i++ )
+		{
+			free( model->faces[i].v );
+			free( model->faces[i].vn );
+		}
+	}
+	else if( model->numNorms == 0 ) //only vertices and texture coordinates
+	{
+		for( i=0; i < model->numFaces; i++ )
+		{
+			free( model->faces[i].v );
+			free( model->faces[i].vt );
+		}
+	}
+	else
+	{
+		for( i=0; i < model->numFaces; i++ ) //vertices, normals and texture coordinates
+		{
+			free( model->faces[i].v );
+			free( model->faces[i].vt );
+			free( model->faces[i].vn );
+		}
+	}
     free( model->faces );
+	
     free( model );
 }

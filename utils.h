@@ -26,10 +26,10 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 void draw_origin();
 
 //draws bounding box with lines
-void draw_bounding_box( vec3d box[2] );
+void draw_bounding_box( vec3f box[2] );
 
 //Calculates the center of the bounding box 
-void bounding_box_centroid( vec3d box[2], vec3d *centroid );
+void bounding_box_centroid( vec3f box[2], vec3f *centroid );
 
 //Loads a texture with GdkPixbuf
 unsigned int load_texture( const char *nom );
@@ -44,10 +44,16 @@ int f_read_line( FILE *stream, int n, char *p );
 //go to the next line and return the last character ridden. If end of file, it returns EOF
 int f_skip_line( FILE *stream );
 
+unsigned short f_line_count_strings( FILE *stream );
+
 //Operations on vectors
-void vec3d_cross_product( vec3d *v1, vec3d *v2, vec3d *out );
-void vec3d_normalize( vec3d *v );
-void vec3d_sub( vec3d *v1, vec3d *v2, vec3d *out );
-void vec3d_copy( vec3d *v1, vec3d *v2 );
+short vec3f_cmp( vec3f v1, vec3f v2 );
+void vec3f_cross_product( vec3f *v1, vec3f *v2, vec3f *out );
+void vec3f_normalize( vec3f *v );
+void vec3f_sub( vec3f *v1, vec3f *v2, vec3f *out );
+void vec3f_add( vec3f *v1, vec3f *v2, vec3f *out );
+void vec3f_scale( vec3f *v, double s, vec3f *out );
+void vec3f_copy( vec3f *v1, vec3f *v2 );
+void vec3f_zero( vec3f *v );
 
 #endif

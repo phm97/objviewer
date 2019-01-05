@@ -221,7 +221,7 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 		
 		if( glWidget->priv->showBoundingBox )
 		{
-			vec3d boundingBox[2];
+			vec3f boundingBox[2];
 			
 			glPushMatrix();
 			glMultMatrixf(&matrix[0][0]);
@@ -233,13 +233,14 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 			glPopMatrix();
 		}
 		
-		if( glWidget->priv->enableLighting ) glEnable(GL_LIGHTING);
 		
 		if( glWidget->priv->showCentroid )  //draw a blue sphere at the location of the center of gravity
 		{
 			float blueCentroid[] = { 0.0, 0.0, 1.0, 1.0 };
 			
 			glMaterialfv( GL_FRONT, GL_DIFFUSE, blueCentroid );
+			glEnable(GL_LIGHTING);
+			
 			glPushMatrix();
 			glMultMatrixf(&matrix[0][0]);
 			glScalef( glWidget->priv->scale, glWidget->priv->scale, glWidget->priv->scale );
@@ -248,8 +249,12 @@ static void gtk_gl_widget_draw( GtkGlWidget *glWidget )
 			glColor3ub( 0, 0, 255 );
 			gdk_gl_draw_sphere( TRUE, 0.055/glWidget->priv->scale, 16, 16 );
 			glPopMatrix();
+			
+			glDisable( GL_LIGHTING );
 		}
 		
+		
+		if( glWidget->priv->enableLighting ) glEnable(GL_LIGHTING);
 		if( glWidget->priv->hasTexture )
 		{
 			glEnable( GL_TEXTURE_2D );
@@ -364,8 +369,8 @@ static gboolean gtk_gl_widget_motion_notify_event (GtkWidget *widget, GdkEventMo
 
 int gtk_gl_widget_open_model( GtkGlWidget *glWidget, const char *name )
 {	
-	vec3d centroid;
-	vec3d boundingBox[2];
+	vec3f centroid;
+	vec3f boundingBox[2];
 	
 	g_return_if_fail (glWidget != NULL);
 	g_return_if_fail (GTK_IS_GL_WIDGET (glWidget));
