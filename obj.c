@@ -300,16 +300,6 @@ ObjModel* obj_load_from_file( const char* name )
 	locale = setlocale( LC_ALL, NULL );
 	savedLocale = strdup( locale );
 	setlocale( LC_ALL, "C" );
-	
-	/* check extension : You can enable it if you want
-	if( strstr(name, ".obj") == NULL ) {
-		if( strstr(name, ".OBJ") == NULL )
-		{
-			printf("Error : the filename specified does not contain the .obj extension\n\n");
-			return NULL;
-		}
-	}
-	*/
 
 	
     //opening file
