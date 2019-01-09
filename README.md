@@ -25,8 +25,9 @@ And here are the supported features :
 - faces defined with absolute indices
 - faces defined with relative indices
 - smoothing groups
+- calcul of normal vectors with or without smoothing groups. if they are more than 30000 vertices, normals are calculated flat.
 
-Note that textured parts and non-textured parts can not cohabit in the same file. The obj files loaded must be fully textured or fully untextured, or else, it will result in a crash.
+Note that textured parts and non-textured parts can not cohabit in the same file. **The obj files loaded must be fully textured or fully untextured, or else, it will result in a crash.**
 
 Texture files are loaded with GdkPixbuf. The supported file formats are the following :
 - bmp
