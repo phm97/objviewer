@@ -94,8 +94,13 @@ void open_texture( GtkWidget *widget, GtkGlWidget *glWidget )
 
 void about( GtkWidget *widget, GtkWidget *window )
 {
-	GdkPixbuf *openglLogo;
+	GdkPixbuf *openglLogo=NULL;
+	GError *error = NULL;
+	char *logoFileName;
 	
+	
+	//The file we're using for this code is normally saved in UTF8
+	char utf8Filename[] = "OpenGL_100px_June16.png";
 	const gchar *authors[] = {
 		"Obj Viewer :",
 		"Pierre Vilain",
@@ -109,16 +114,37 @@ void about( GtkWidget *widget, GtkWidget *window )
 		NULL
 	};
 	
-	openglLogo = gdk_pixbuf_new_from_file( "OpenGL_100px_June16.png", NULL );
+	logoFileName = g_filename_from_utf8(utf8Filename, -1, NULL, NULL, &error);
+	if( !logoFileName )
+	{
+		g_printerr ("Error : %s\n\n", error->message);
+		g_clear_error (&error);
+		
+		//we will try to open the file even if the conversion fails. On modern OS, it should work
+		logoFileName = utf8Filename;
+	}
 	
+	openglLogo = gdk_pixbuf_new_from_file( logoFileName, &error );
+	if( !openglLogo )
+	{
+		g_printerr ("Error loading OpenGL logo : %s\n\n", error->message);
+		g_clear_error (&error);
+	}
+		
+	g_free(logoFileName);
+	
+	
+
 	gtk_show_about_dialog( GTK_WINDOW (window),
                         "program-name", "Obj Viewer",
 						"logo", openglLogo,
                         "comments", "This program uses GTK+ 2, GtkGLExt and OpenGL 1.2\n\n OpenGL and the oval logo are trademarks or registered trademarks of Hewlett Packard Enterprise in the United States and/or other countries worldwide.",
                         "authors", authors,
                         NULL);
-						
-	g_object_unref( openglLogo );
+	
+	if(openglLogo) g_object_unref( openglLogo );
+	
+	
 }
 
 void screenshot( GtkWidget *widget, GtkGlWidget *glWidget )
