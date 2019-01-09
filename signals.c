@@ -99,7 +99,7 @@ void about( GtkWidget *widget, GtkWidget *window )
 	char *logoFileName;
 	
 	
-	//The file we're using for this code is normally saved in UTF8
+	//The file we're using for this code should be saved in UTF8
 	char utf8Filename[] = "OpenGL_100px_June16.png";
 	const gchar *authors[] = {
 		"Obj Viewer :",
