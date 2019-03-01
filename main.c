@@ -25,14 +25,13 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 
 
 int main( int argc, char *argv[] )
-{ 
-	
+{ 	
 	GtkWidget *window;
 	GtkBuilder *builder;
 	GdkGLConfig *glConfig;
 
 	
-    gtk_init(&argc, &argv);
+	gtk_init(&argc, &argv);
 	gtk_gl_init (&argc, &argv);
 	
 	
@@ -40,7 +39,7 @@ int main( int argc, char *argv[] )
 	//Try double-buffered visual
 	glConfig = gdk_gl_config_new_by_mode( GDK_GL_MODE_RGB | GDK_GL_MODE_DEPTH | GDK_GL_MODE_DOUBLE );
 	if (glConfig == NULL)
-    {
+	{
 		g_print ("Cannot find the double-buffered visual.\n");
 		g_print ("Trying single-buffered visual.\n");
 
@@ -52,15 +51,16 @@ int main( int argc, char *argv[] )
 			return 1;
 		}
 		else g_print("OpenGL Single Buffered mode enabled");
-    }
+	}
 	else g_print("OpenGL double buffered mode enabled\n");
 	
 	
 	//Load all the widgets from a XML file
-    builder = gtk_builder_new();
-    if( !gtk_builder_add_from_file (builder, "mainwindow.glade", NULL)) 
+	builder = gtk_builder_new();
+	if( !gtk_builder_add_from_file (builder, "mainwindow.glade", NULL)) 
 	{
-		g_print("error : impossible to load mainwindow.glade\n");
+		g_print("error : could not load mainwindow.glade\n");
+		g_object_unref(builder);
 		return 1;
 	}	
 	
@@ -70,11 +70,11 @@ int main( int argc, char *argv[] )
 	connect_signals( builder, glConfig );
 	
 	//Make sure all the widgets are visible
-    window = GTK_WIDGET( gtk_builder_get_object( builder, "window_main" ) );
-    gtk_widget_show_all(window);
+	window = GTK_WIDGET( gtk_builder_get_object( builder, "window_main" ) );
+	gtk_widget_show_all(window);
 
 	//Let's run the Application !!!
-    gtk_main();
+	gtk_main();
 	
 	
 	g_object_unref(builder);
