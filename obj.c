@@ -50,15 +50,15 @@ static ObjModel* obj_new()
 	
 	model = malloc( sizeof(ObjModel) );
 	
-    model->numVertices = 0;
-    model->numTexCoor = 0;
-    model->numNorms = 0;
-    model->numFaces = 0;
-    model->numGroups = 0;
-    model->vertices = NULL;
-    model->texCoor = NULL;
-    model->normals = NULL;
-    model->faces = NULL;
+	model->numVertices = 0;
+	model->numTexCoor = 0;
+	model->numNorms = 0;
+	model->numFaces = 0;
+	model->numGroups = 0;
+	model->vertices = NULL;
+	model->texCoor = NULL;
+	model->normals = NULL;
+	model->faces = NULL;
 	model->materialList = NULL;
 	
 	return model;
@@ -97,7 +97,7 @@ static void obj_import_mtl( ObjModel *model, FILE *file, const char *objFileName
 			case 'u' :
 			case 'g' :
 			case '#' : character = f_skip_line( file ); //comment
-            break;
+			break;
 		}
 	}
 	
@@ -115,49 +115,48 @@ static void obj_first_read( ObjModel *model, FILE *file )
 	int character = 0;
 	
 	
-    rewind( file );
-    while( character != EOF )
-    {
-        character = fgetc( file );
-        switch( character )
-        {
-            case 'v' : character = fgetc( file );
-                       if( character == 'n' ) model->numNorms++;
-                       else if( character == 't' ) model->numTexCoor++;
-					   else if( character == 'p' ) character = f_skip_line(file); //vertex parameter. not implemented
-                       else model->numVertices++;
-            break;
-            case 'f' : model->numFaces++;
-            break;
+	rewind( file );
+	while( character != EOF )
+	{
+		character = fgetc( file );
+		switch( character )
+		{
+			case 'v' : character = fgetc( file );
+				if( character == 'n' ) model->numNorms++;
+				else if( character == 't' ) model->numTexCoor++;
+				else if( character == 'p' ) character = f_skip_line(file); //vertex parameter. not implemented
+				else model->numVertices++;
+			break;
+			case 'f' : model->numFaces++;
+			break;
 			case 'g' : model->numGroups++;
-						character = f_skip_line(file);
-            break;
-			
+				character = f_skip_line(file);
+			break;			
 			
 			case 'm' : 
 			case 'o' :
-            case 'u' : 
+			case 'u' : 
 			case 's' : //smoothing group
-            case '#' : character = f_skip_line(file);
-            break;
-        }
-    }
+			case '#' : character = f_skip_line(file);
+			break;
+		}
+	}
 
-	
-    g_print("-> %d vertices\n", model->numVertices );
-    g_print("-> %d texture coordinates\n", model->numTexCoor );
-    g_print("-> %d normals\n", model->numNorms );
-    g_print("-> %d faces\n", model->numFaces );
-    g_print("-> %d groups\n", model->numGroups );
+
+	g_print("-> %d vertices\n", model->numVertices );
+	g_print("-> %d texture coordinates\n", model->numTexCoor );
+	g_print("-> %d normals\n", model->numNorms );
+	g_print("-> %d faces\n", model->numFaces );
+	g_print("-> %d groups\n", model->numGroups );
 	
 	
 	model->vertices = (vec3f*) malloc( model->numVertices * sizeof( vec3f ) );
-    model->texCoor = (vec2f*) malloc( model->numTexCoor * sizeof( vec2f ) );
-    model->normals = (vec3f*) malloc( model->numNorms * sizeof( vec3f) );
+	model->texCoor = (vec2f*) malloc( model->numTexCoor * sizeof( vec2f ) );
+	model->normals = (vec3f*) malloc( model->numNorms * sizeof( vec3f) );
 	model->faces = (face*) malloc( model->numFaces * sizeof( face ) );
 	
 	for( i=0; i < model->numVertices ; i++ ) { model->vertices[i].x = 0.0; model->vertices[i].y = 0.0; model->vertices[i].z = 0.0; }
-    for( i=0; i < model->numTexCoor; i++ ) { model->texCoor[i].x = 0.0; model->texCoor[i].y = 0.0; }
+	for( i=0; i < model->numTexCoor; i++ ) { model->texCoor[i].x = 0.0; model->texCoor[i].y = 0.0; }
 	for( i=0; i < model->numNorms; i++ ) { model->normals[i].x = 0.0; model->normals[i].y = 0.0; model->normals[i].z = 0.0; }
 	
 	
@@ -173,13 +172,13 @@ static void obj_first_read( ObjModel *model, FILE *file )
 //load obj datas
 static void obj_parse( ObjModel *model, FILE *file )
 {
-    int n=0; //current normal
-    int v=0; //current vertex
-    int t=0; //current texCoord
-    int currentFace = 0; 
+	int n=0; //current normal
+	int v=0; //current vertex
+	int t=0; //current texCoord
+	int currentFace = 0; 
 	short s = 1; //smooth is on by default
 	char buf[128];
-    int character = 0;
+	int character = 0;
 	Material *currentMaterial = NULL;
 	
 	/* a b c : These variables are used to parse faces. A square face in the file is defined that way :
@@ -187,125 +186,125 @@ static void obj_parse( ObjModel *model, FILE *file )
 	int a, b, c;
 	int i;
 
-    rewind( file );
+	rewind( file );
 
-    g_print("Loading datas...\n");
+	g_print("Loading datas...\n");
 
-    while( character != EOF )
-    {
-        character = fgetc( file );
-        switch( character )
-        {
+	while( character != EOF )
+	{
+		character = fgetc( file );
+		switch( character )
+		{
 			
-            case 'v': 	character = fgetc( file );
-						if( character == 'n' ) //normal
-						{
-							fscanf( file, " %f %f %f", &model->normals[n].x, &model->normals[n].y, &model->normals[n].z );
-							n++;
-						}
-						else if( character == 't' ) //TexCoor
-						{
-							fscanf( file, " %f %f", &model->texCoor[t].x, &model->texCoor[t].y );
-							t++;
-						}
-						else //vertex
-						{
-							fscanf( file, "%f %f %f", &model->vertices[v].x, &model->vertices[v].y, &model->vertices[v].z );
-							v++;
-						}
-            break;
+			case 'v': character = fgetc( file );
+				if( character == 'n' ) //normal
+				{
+					fscanf( file, " %f %f %f", &model->normals[n].x, &model->normals[n].y, &model->normals[n].z );
+					n++;
+				}
+				else if( character == 't' ) //TexCoor
+				{
+					fscanf( file, " %f %f", &model->texCoor[t].x, &model->texCoor[t].y );
+					t++;
+				}
+				else //vertex
+					{
+					fscanf( file, "%f %f %f", &model->vertices[v].x, &model->vertices[v].y, &model->vertices[v].z );
+					v++;
+				}
+			break;
 
-			case 's' : 	fscanf( file, " %s", buf ); //smoothing group
-						if( strcmp( buf, "off" ) == 0 ) s = 0;
-						else s = (short) atol( buf );
+			case 's' : fscanf( file, " %s", buf ); //smoothing group
+				if( strcmp( buf, "off" ) == 0 ) s = 0;
+				else s = (short) atol( buf );
 			break;	
 			
 			case 'u' : fscanf( file, "semtl %s", buf );
-						currentMaterial = mtl_find_with_name( model->materialList, buf );
+				currentMaterial = mtl_find_with_name( model->materialList, buf );
 			break;
 			
 			case 'o' :
 			case 'g' : 	//groups are not implemented yet
 			case 'm' :	//mtllib
-            case '#' :  character = f_skip_line( file );  
-            break;
-            case 'f' :  model->faces[currentFace].type = f_line_count_strings( file );
+			case '#' :  character = f_skip_line( file );  
+			break;
+			case 'f' :  model->faces[currentFace].type = f_line_count_strings( file );
 			
-						//we must remember this shema :   f  a/b/c a/b/c a/b/c etc...
-						if( model->numNorms == 0 && model->numTexCoor == 0 ) //only vertices
+				//we must remember this shema :   f  a/b/c a/b/c a/b/c etc...
+				if( model->numNorms == 0 && model->numTexCoor == 0 ) //only vertices
+				{
+					model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) ); 
+					for( i=0; i<model->faces[currentFace].type; i++ )
+					{
+						fscanf( file, " %d", &a );
+						if( a < 0 ) model->faces[currentFace].v[i] = v + a;		//relatice indices
+						else model->faces[currentFace].v[i] =a - 1;			//absolute indices
+					}
+				}
+				else if( model->numTexCoor == 0 ) //only vertices and normals
+					{
+						model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+						model->faces[currentFace].vn = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+						for( i=0; i<model->faces[currentFace].type; i++ )
 						{
-							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) ); 
-							for( i=0; i<model->faces[currentFace].type; i++ )
+							fscanf( file, " %d//%d", &a, &c );
+							if( a < 0 )  //relative indices
 							{
-								fscanf( file, " %d", &a );
-								if( a < 0 ) model->faces[currentFace].v[i] = v + a;		//relatice indices
-								else model->faces[currentFace].v[i] =a - 1;			//absolute indices
+								model->faces[currentFace].v[i] = v + a;
+								model->faces[currentFace].vn[i] = n + c;
+							}
+							else //absolute indices
+							{
+								model->faces[currentFace].v[i] = a - 1;
+								model->faces[currentFace].vn[i] = c - 1;
 							}
 						}
-						else if( model->numTexCoor == 0 ) //only vertices and normals
+				}
+				else if( model->numNorms == 0 ) //only vertices and texture coordinates
+				{
+					model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+					model->faces[currentFace].vt = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+					for( i=0; i<model->faces[currentFace].type; i++ )
+					{
+						fscanf( file, " %d/%d", &a, &b );
+						if( a < 0 )
 						{
-							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
-							model->faces[currentFace].vn = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
-							for( i=0; i<model->faces[currentFace].type; i++ )
-							{
-								fscanf( file, " %d//%d", &a, &c );
-								if( a < 0 )  //relative indices
-								{
-									model->faces[currentFace].v[i] = v + a;
-									model->faces[currentFace].vn[i] = n + c;
-								}
-								else //absolute indices
-								{
-									model->faces[currentFace].v[i] = a - 1;
-									model->faces[currentFace].vn[i] = c - 1;
-								}
-							}
+							model->faces[currentFace].v[i] = v + a;
+							model->faces[currentFace].vt[i] = t + b;
 						}
-						else if( model->numNorms == 0 ) //only vertices and texture coordinates
+						else
 						{
-							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
-							model->faces[currentFace].vt = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
-							for( i=0; i<model->faces[currentFace].type; i++ )
-							{
-								fscanf( file, " %d/%d", &a, &b );
-								if( a < 0 )
-								{
-									model->faces[currentFace].v[i] = v + a;
-									model->faces[currentFace].vt[i] = t + b;
-								}
-								else
-								{
-									model->faces[currentFace].v[i] = a - 1;
-									model->faces[currentFace].vt[i] = b - 1;
-								}
-							}
+							model->faces[currentFace].v[i] = a - 1;
+							model->faces[currentFace].vt[i] = b - 1;
 						}
-						else //vertices texture coordinates and normals
+					}
+				}
+				else //vertices texture coordinates and normals
+				{
+					model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+					model->faces[currentFace].vt = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+					model->faces[currentFace].vn = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
+					for( i=0; i<model->faces[currentFace].type; i++ )
+					{
+						fscanf( file, " %d/%d/%d", &a, &b, &c );
+						if( a < 0 )
 						{
-							model->faces[currentFace].v = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
-							model->faces[currentFace].vt = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
-							model->faces[currentFace].vn = (unsigned int *) malloc( model->faces[currentFace].type * sizeof(unsigned int) );
-							for( i=0; i<model->faces[currentFace].type; i++ )
-							{
-								fscanf( file, " %d/%d/%d", &a, &b, &c );
-								if( a < 0 )
-								{
-									model->faces[currentFace].v[i] = v + a;
-									model->faces[currentFace].vt[i] = t + b;
-									model->faces[currentFace].vn[i] = n + c;
-								}
-								else
-								{
-									model->faces[currentFace].v[i] = a - 1;
-									model->faces[currentFace].vt[i] = b - 1;
-									model->faces[currentFace].vn[i] = c - 1;
-								}
-							}
+							model->faces[currentFace].v[i] = v + a;
+							model->faces[currentFace].vt[i] = t + b;
+							model->faces[currentFace].vn[i] = n + c;
 						}
-						
-						model->faces[currentFace].smooth = s;
-						model->faces[currentFace].mtl = currentMaterial;
-						currentFace++;
+						else
+						{
+							model->faces[currentFace].v[i] = a - 1;
+							model->faces[currentFace].vt[i] = b - 1;
+							model->faces[currentFace].vn[i] = c - 1;
+						}
+					}
+				}
+
+				model->faces[currentFace].smooth = s;
+				model->faces[currentFace].mtl = currentMaterial;
+				currentFace++;
 			break;
 			default :
 			break;
@@ -317,8 +316,8 @@ static void obj_parse( ObjModel *model, FILE *file )
 
 ObjModel* obj_load_from_file( const char* name )
 {
-    ObjModel* model = NULL;
-    FILE *file = NULL;
+	ObjModel* model = NULL;
+	FILE *file = NULL;
 	char *locale, *savedLocale;
 	int i;
 	
@@ -342,27 +341,25 @@ ObjModel* obj_load_from_file( const char* name )
 	savedLocale = strdup( locale );
 	setlocale( LC_ALL, "C" );
 
+	//opening file
+	g_print("Opening %s...\n", name );
+	file = g_fopen( name, "r" );
+	if( !file )
+	{
+		g_print("Impossible to open %s\n", name );
+		return NULL;
+	}
 	
-    //opening file
-    g_print("Opening %s...\n", name );
-    file = g_fopen( name, "r" );
-    if( !file )
-    {
-        g_print("Impossible to open %s\n", name );
-        return NULL;
-    }
 	
-	
-    model = obj_new();
+	model = obj_new();
 	obj_import_mtl( model, file, name );
-    obj_first_read( model, file );
-    obj_parse( model, file );
+	obj_first_read( model, file );
+	obj_parse( model, file );
 	
-    fclose( file );
+	fclose( file );
 	
 	setlocale( LC_ALL, savedLocale );
 	free( savedLocale );
-	
 	
 	if( model->numNorms == 0 ) 
 	{
