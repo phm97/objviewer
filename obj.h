@@ -28,7 +28,7 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 typedef struct face face;
 struct face
 {
-    unsigned int *v;
+	unsigned int *v;
 	unsigned int *vt;
 	unsigned int *vn;
 	unsigned short smooth;		//smoothing group
@@ -43,19 +43,19 @@ struct ObjModel
 {
 	Material *materialList;
 	
-    int numVertices;
-    vec3f *vertices;
+	int numVertices;
+	vec3f *vertices;
 
-    int numTexCoor;
-    vec2f *texCoor;
+	int numTexCoor;
+	vec2f *texCoor;
 
-    int numNorms;
-    vec3f *normals;
+	int numNorms;
+	vec3f *normals;
 
-    int numFaces;
-    face *faces;
+	int numFaces;
+	face *faces;
 
-    int numGroups;
+	int numGroups;
 };
 
 
